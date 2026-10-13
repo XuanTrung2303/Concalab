@@ -219,7 +219,12 @@ const lines=computed(()=>cart.value.map(o=>({...o,p:products.value.find(p=>p.id=
 const total=computed(()=>lines.value.reduce((s,o)=>s+o.p.price_vnd*o.q,0))
 const count=computed(()=>lines.value.reduce((s,o)=>s+o.q,0))
 const pic=(p,ci=0,meet)=>{const u=p.colors[ci]?.image_url||p.image_url   // màu không có ảnh riêng thì dùng ảnh chính
-  return u?`<img src="${u}" alt="${p.name}" loading="lazy" decoding="async">`:art(p.slug,p.colors[ci]?.hex||'#00bcd4',BG,meet)}
+  if(u)return `<img src="${u}" alt="${p.name}" loading="lazy" decoding="async">`
+  const kind=String(p.slug||'').replace(/-[a-z0-9]{4}$/,'')   // sản phẩm mẫu có hình minh họa riêng; sản phẩm mới chưa có ảnh thì hiện hình chờ
+  if(KINDS.includes(kind))return art(kind,p.colors[ci]?.hex||'#00bcd4',BG,meet)
+  return noImg(meet)}
+const KINDS=['pot','fish','stand','dragon','lamp','chess']
+const noImg=meet=>`<svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid ${meet?'meet':'slice'}" xmlns="http://www.w3.org/2000/svg" style="background:linear-gradient(135deg,#d6fbf4,#8fe6f2)"><g fill="none" stroke="#2b8a9b" stroke-width="6" stroke-linejoin="round" opacity=".55"><path d="M200 88l64 36v72l-64 36-64-36v-72z"/><path d="M136 124l64 36 64-36M200 160v72"/></g><text x="200" y="278" text-anchor="middle" font-family="Outfit,sans-serif" font-size="20" fill="#2b8a9b" opacity=".75">Chưa có ảnh</text></svg>`
 function toast(m,ms=1800){toastMsg.value=m;toastOn.value=true;clearTimeout(tt);tt=setTimeout(()=>toastOn.value=false,ms)}
 const oos=p=>p.in_stock===false
 const OOS_MSG='Sản phẩm này đã hết hàng, vui lòng chọn sản phẩm khác'
@@ -388,4 +393,26 @@ onMounted(async()=>{
 .shipbox .srow{display:flex;justify-content:space-between;gap:10px;font-size:15px}
 .shipbox .big{font-size:17px;font-weight:700;border-top:1px dashed var(--bd);padding-top:8px;margin-top:2px}
 .shipnote{color:var(--mut);font-size:13px;line-height:1.4}
+/* ---- màn hình cảm ứng: bỏ hiệu ứng hover (trên điện thoại hover bị "dính" sau khi chạm) ---- */
+@media (hover:none){
+ html .pc:hover{transform:none;box-shadow:none}
+ html .pc:hover .pimg svg,html .pc:hover .pimg img{transform:none}
+ html .pc:hover .view{opacity:0}
+ html .btn:hover{transform:none;box-shadow:none}
+ html .step:hover{transform:none}
+ html #tg:hover{transform:none}
+ html #pill a:hover,html #pill .i:hover,html .top nav a:hover{background:none}
+ html dialog .x:focus,html dialog .x:focus-visible{outline:none}
+}
+/* iPhone tự phóng to trang khi chạm vào ô nhập có chữ nhỏ hơn 16px, làm lệch giao diện */
+@media (pointer:coarse){html body input,html body select,html body textarea{font-size:16px!important}}
+/* điện thoại: danh mục là dải cuộn ngang (vuốt), hiện đủ tên, không cắt chữ */
+@media (max-width:600px){
+ .chipbar{width:100%}
+ .chipbar .cnav{display:none}
+ .chipwin{flex:1 1 100%;width:100%;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+ .chipwin::-webkit-scrollbar{display:none}
+ .chipbar .chips{width:max-content;transform:none!important;transition:none}
+ .chipbar .chips button{flex:0 0 auto;overflow:visible;text-overflow:clip;padding-left:14px;padding-right:14px}
+}
 </style>

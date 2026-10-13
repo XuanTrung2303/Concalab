@@ -429,4 +429,6 @@ select.st option{background:var(--stage);font-weight:600}
 .sh .sl{justify-self:start}
 .sh .sbar{justify-self:end;width:min(100%,360px);margin:0}
 @media(max-width:860px){.sh{grid-template-columns:1fr;justify-items:center}.sh .sl{justify-self:center}.sh .sl:empty{display:none}.sh .sbar{justify-self:center;width:min(100%,440px)}.sh h2{white-space:normal}}
+@media (hover:none){html .btn:hover{transform:none;box-shadow:none}}
+@media (pointer:coarse){html body input,html body select,html body textarea{font-size:16px!important}}
 </style>
