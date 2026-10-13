@@ -415,4 +415,15 @@ onMounted(async()=>{
  .chipbar .chips{width:max-content;transform:none!important;transition:none}
  .chipbar .chips button{flex:0 0 auto;overflow:visible;text-overflow:clip;padding-left:14px;padding-right:14px}
 }
+/* ---- điện thoại: các lỗi còn sót ---- */
+html{-webkit-tap-highlight-color:transparent}
+@media (hover:none){
+ html .pimg:focus-visible .view{opacity:0}              /* đóng cửa sổ xong, trình duyệt trả tiêu điểm về thẻ làm nhãn "Xem chi tiết" hiện lại */
+ html body button:focus-visible,html body a:focus-visible{outline:none}
+}
+@media (max-width:860px){
+ .md .mimg{aspect-ratio:auto;height:34vh;min-height:190px}   /* ảnh không chiếm quá nửa màn hình */
+ .md .buy{position:sticky;bottom:0;z-index:3;background:var(--stage);padding:12px 0 calc(12px + env(safe-area-inset-bottom,0px));margin-top:8px;border-top:1px solid var(--bd)}   /* giá và nút Thêm giỏ luôn nằm sát đáy, khỏi phải cuộn */
+ .cd{padding:22px 16px}
+}
 </style>
