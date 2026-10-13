@@ -134,6 +134,7 @@
    <p class="sub" style="margin:0">Mã đơn: <b>{{pay.code}}</b>. Quét mã QR bằng app ngân hàng, số tiền và nội dung đã được điền sẵn. Bạn có thể đóng giỏ hàng, sản phẩm vẫn được giữ lại.</p>
    <img class="qr" :src="pay.qr_url" alt="Mã QR thanh toán" width="320" height="320">
    <div class="sum"><span>Cần thanh toán</span><span>{{vnd(pay.total_vnd)}}</span></div>
+   <p class="shipnote" style="text-align:center;margin:0">Tiền hàng {{vnd(pay.items_total)}} + phí vận chuyển {{pay.shipping_fee_vnd?vnd(pay.shipping_fee_vnd):'miễn phí'}}</p>
    <p class="res" style="text-align:center">Nội dung chuyển khoản: thanh toan don hang #{{pay.code}}</p>
    <p class="wait" v-if="(pay.auto||pay.waiting)&&!pay.underpaid&&!pay.cancelled"><span class="spin"></span><span>{{pay.waiting?'Đã ghi nhận! Shop đang kiểm tra khoản chuyển và sẽ xác nhận trong ít phút. Trang này tự cập nhật, bạn không cần bấm gì thêm.':'Đang chờ thanh toán… Hệ thống tự động xác nhận ngay khi nhận được tiền, bạn không cần bấm gì thêm.'}}</span></p>
    <p class="res" v-if="pay.cancelled">Đơn hàng này đã bị hủy. Vui lòng liên hệ shop qua Zalo {{ZALO}} để được hỗ trợ.</p>
@@ -157,13 +158,25 @@
      <div class="rt">{{vnd(o.p.price_vnd*o.q)}}<button @click="rm(o)">Xóa</button></div>
     </div>
    </div>
-   <div class="sum"><span>Tổng cộng</span><span>{{vnd(total)}}</span></div>
+   <div class="sum"><span>Tiền hàng</span><span>{{vnd(total)}}</span></div>
    <form @submit.prevent="submitOrder">
     <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
     <div class="f2"><label>Họ tên<input name="n" v-model="fm.n" required autocomplete="name"></label><label>SĐT / Zalo<input name="p" v-model="fm.p" required autocomplete="tel"></label></div>
-    <label>Địa chỉ nhận hàng<input name="a" v-model="fm.a" required autocomplete="street-address"></label>
+    <label>Khu vực giao hàng<select name="r" v-model="fm.region"><option value="danang">Đà Nẵng</option><option value="other">Tỉnh / thành phố khác</option></select></label>
+    <template v-if="fm.region==='danang'">
+     <div class="f2"><label>Số nhà, tên đường<input v-model="fm.street" required autocomplete="address-line1" placeholder="VD: 25 Nguyễn Văn Linh"></label><label>Phường / Xã<input v-model="fm.ward" required autocomplete="address-level2" placeholder="VD: Hòa Thuận Nam"></label></div>
+    </template>
+    <template v-else>
+     <div class="f2"><label>Tỉnh / Thành phố<input v-model="fm.province" required autocomplete="address-level1" placeholder="VD: Huế"></label><label>Số nhà, đường, phường/xã<input v-model="fm.street" required autocomplete="address-line1"></label></div>
+    </template>
     <label>Ghi chú (không bắt buộc)<textarea name="g" v-model="fm.g" rows="2"></textarea></label>
-    <button class="btn c" type="submit" :disabled="busy">{{busy?'Đang gửi…':'Đặt hàng & thanh toán'}}</button>
+    <div class="shipbox">
+     <div class="srow"><span>Tiền hàng</span><b>{{vnd(total)}}</b></div>
+     <div class="srow"><span>Phí vận chuyển</span><b>{{shipLabel}}</b></div>
+     <small class="shipnote">{{shipNote}}</small>
+     <div class="srow big"><span>Tổng thanh toán</span><b>{{shipInfo?vnd(grand):'—'}}</b></div>
+    </div>
+    <button class="btn c" type="submit" :disabled="busy||shipBusy||!shipInfo">{{busy?'Đang gửi…':'Đặt hàng & thanh toán'}}</button>
     <template v-if="orderErr"><p class="res">{{orderErr}}</p><button type="button" class="btn o" @click="copyOrder">Sao chép nội dung đơn để gửi Zalo</button></template>
    </form>
   </template>
@@ -186,7 +199,7 @@ import DOMPurify from 'dompurify'
 const ZALO='09xx xxx xxx',BG=['#d6fbf4','#8fe6f2']
 const vnd=n=>n.toLocaleString('vi-VN')+'đ'
 const products=ref([]),loading=ref(true),loadErr=ref(''),cat=ref('Tất cả'),cart=ref([]),cur=ref(null),done=ref(null)
-const pay=ref(null),fm=reactive({n:'',p:'',a:'',g:''}),busy=ref(false),orderErr=ref(''),quoteMsg=ref(''),pd=ref(null),cd=ref(null),toastMsg=ref(''),toastOn=ref(false)
+const pay=ref(null),fm=reactive({n:'',p:'',g:'',region:'danang',province:'',ward:'',street:''}),busy=ref(false),orderErr=ref(''),quoteMsg=ref(''),pd=ref(null),cd=ref(null),toastMsg=ref(''),toastOn=ref(false)
 let tt,lastText=''
 const cats=computed(()=>['Tất cả',...new Set(products.value.map(p=>p.category))])
 const shown=computed(()=>products.value.filter(p=>cat.value=='Tất cả'||p.category==cat.value))
@@ -249,13 +262,33 @@ async function post(url,data){
   const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
   const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Có lỗi xảy ra, vui lòng thử lại');return j
 }
+// ---- phí vận chuyển: tự tính khi khách nhập xong địa chỉ (máy chủ tính lại lần nữa lúc đặt hàng) ----
+const shipInfo=ref(null),shipBusy=ref(false),shipErr=ref('');let shipT=null,shipSeq=0
+const shipPayload=()=>({region:fm.region,province:fm.province.trim(),ward:fm.ward.trim(),street:fm.street.trim()})
+const addrReady=()=>fm.region==='danang'?(fm.street.trim().length>=3&&fm.ward.trim().length>=2):(fm.province.trim().length>=2&&fm.street.trim().length>=3)
+const addrText=()=>fm.region==='danang'?`${fm.street.trim()}, ${fm.ward.trim()}, Đà Nẵng`:`${fm.street.trim()}, ${fm.province.trim()}`
+const resetFm=()=>{fm.n=fm.p=fm.g=fm.province=fm.ward=fm.street='';fm.region='danang';shipInfo.value=null;shipErr.value=''}
+function calcShip(){
+  clearTimeout(shipT);shipInfo.value=null;shipErr.value='';++shipSeq
+  if(!addrReady()){shipBusy.value=false;return}
+  shipBusy.value=true;const my=shipSeq
+  shipT=setTimeout(async()=>{   // đợi khách ngừng gõ rồi mới hỏi máy chủ
+    try{const r=await post('/api/ship',shipPayload());if(my===shipSeq)shipInfo.value=r}
+    catch(e){if(my===shipSeq)shipErr.value=e.message||'Không tính được phí vận chuyển, vui lòng thử lại.'}
+    if(my===shipSeq)shipBusy.value=false
+  },700)
+}
+watch(()=>[fm.region,fm.province,fm.ward,fm.street],calcShip)
+const shipLabel=computed(()=>shipBusy.value?'Đang tính…':shipInfo.value?(shipInfo.value.fee?vnd(shipInfo.value.fee):'Miễn phí'):'—')
+const shipNote=computed(()=>shipErr.value||(shipInfo.value?shipInfo.value.note:'Nhập địa chỉ để tính phí vận chuyển'))
+const grand=computed(()=>total.value+(shipInfo.value?shipInfo.value.fee:0))
 const orderItems=()=>lines.value.map(o=>({product_id:o.id,color:o.p.colors[o.ci].name,quantity:o.q}))
 async function submitOrder(e){   // bước 1: hiện QR, chưa lưu đơn
   const hh=lines.value.find(o=>oos(o.p))
   if(hh){orderErr.value=`Sản phẩm "${hh.p.name}" đã hết hàng, vui lòng xóa khỏi giỏ hàng hoặc chọn sản phẩm khác.`;return}
   const d=Object.fromEntries(new FormData(e.target));busy.value=true;orderErr.value=''
-  lastText='ĐƠN HÀNG CON CÁ LAB\n'+lines.value.map(o=>`- ${o.p.name} (${o.p.colors[o.ci].name}) x${o.q}: ${vnd(o.p.price_vnd*o.q)}`).join('\n')+`\nTổng: ${vnd(total.value)} (chưa gồm phí ship)\n\nNgười nhận: ${d.n}\nSĐT: ${d.p}\nĐịa chỉ: ${d.a}`+(d.g?`\nGhi chú: ${d.g}`:'')
-  try{pay.value=await post('/api/orders',{name:fm.n,phone:fm.p,address:fm.a,note:fm.g,hp:d.website,items:orderItems(),step:'prepare'})}
+  lastText='ĐƠN HÀNG CON CÁ LAB\n'+lines.value.map(o=>`- ${o.p.name} (${o.p.colors[o.ci].name}) x${o.q}: ${vnd(o.p.price_vnd*o.q)}`).join('\n')+`\nTiền hàng: ${vnd(total.value)}\nPhí ship: ${shipLabel.value}\nTổng: ${shipInfo.value?vnd(grand.value):vnd(total.value)}\n\nNgười nhận: ${d.n}\nSĐT: ${d.p}\nĐịa chỉ: ${addrText()}`+(d.g?`\nGhi chú: ${d.g}`:'')
+  try{pay.value=await post('/api/orders',{name:fm.n,phone:fm.p,ship:shipPayload(),note:fm.g,hp:d.website,items:orderItems(),step:'prepare'})}
   catch(err){orderErr.value=err.message+'. Bạn có thể sao chép đơn và gửi qua Zalo '+ZALO+'.'}
   busy.value=false
 }
@@ -263,7 +296,7 @@ async function confirmOrder(){   // khách báo đã chuyển khoản: ghi nhậ
   busy.value=true;orderErr.value=''
   try{
     await post('/api/orders',{step:'confirm',code:pay.value.code,token:pay.value.token})
-    pay.value.waiting=true;cart.value=[];save();fm.n=fm.p=fm.a=fm.g='';startPoll()
+    pay.value.waiting=true;cart.value=[];save();resetFm();startPoll()
   }catch(err){orderErr.value=err.message}
   busy.value=false
 }
@@ -278,7 +311,7 @@ function startPoll(){   // hỏi máy chủ mỗi 3 giây xem tiền đã về c
     try{
       const r=await post('/api/orders',{step:'status',code:p.code,token:p.token})
       if(r.paid){
-        stopPoll();done.value={code:r.code,total_vnd:r.total_vnd,auto:true};pay.value=null;cart.value=[];save();fm.n=fm.p=fm.a=fm.g=''
+        stopPoll();done.value={code:r.code,total_vnd:r.total_vnd,auto:true};pay.value=null;cart.value=[];save();resetFm()
         if(cd.value&&!cd.value.open)cd.value.showModal()   // khách đã đóng giỏ hàng thì mở lại để báo thành công
       }else if(r.cancelled&&!p.cancelled){p.cancelled=true;stopPoll()}
       else if(r.underpaid&&!p.underpaid)p.underpaid=true
@@ -351,4 +384,8 @@ onMounted(async()=>{
 .rich img{max-width:100%;height:auto;border-radius:10px;display:block;margin:8px 0}
 .rich p{margin:0 0 .6em}.rich ul,.rich ol{padding-left:22px;margin:0 0 .6em}
 .rich a{color:var(--lc);text-decoration:underline}
+.shipbox{display:grid;gap:6px;padding:12px 14px;border-radius:16px;background:var(--row)}
+.shipbox .srow{display:flex;justify-content:space-between;gap:10px;font-size:15px}
+.shipbox .big{font-size:17px;font-weight:700;border-top:1px dashed var(--bd);padding-top:8px;margin-top:2px}
+.shipnote{color:var(--mut);font-size:13px;line-height:1.4}
 </style>

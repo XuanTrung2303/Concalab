@@ -171,6 +171,7 @@
     <div>{{i.product_name}} ({{i.color_name}}) × {{i.quantity}} — {{vnd(i.unit_price_vnd*i.quantity)}}</div>
     <img v-if="i.image_url" :src="i.image_url" class="oimg" alt="" loading="lazy" decoding="async"><div v-else class="oimg ph">3D</div>
    </div>
+   <div class="kv"><span>Phí vận chuyển</span><b>{{vo.shipping_fee_vnd?vnd(vo.shipping_fee_vnd):'Miễn phí'}}</b></div>
    <div class="kv"><span>Tổng cộng</span><b>{{vnd(vo.total_vnd)}}</b></div>
   </div>
  </dialog>

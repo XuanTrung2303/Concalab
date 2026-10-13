@@ -1,5 +1,6 @@
 import {createHmac} from 'node:crypto'
 import {db,body,limited,PHONE,safeEq,createPaidOrder} from './_lib.js'
+import {calcShip} from './_ship.js'
 const bad=(res,m,c=400)=>res.status(c).json({error:m})
 // token gắn mã đơn + tổng tiền + SĐT: khách chỉ xem/xác nhận được đơn của chính mình
 const sign=(code,total,phone)=>createHmac('sha256',process.env.SUPABASE_SERVICE_ROLE_KEY).update(`${code}|${total}|${phone}`).digest('hex')
@@ -29,8 +30,13 @@ export default async function handler(req,res){
   // BƯỚC 1: kiểm tra giỏ hàng, tạo mã đơn + QR. Đơn CHƯA vào bảng orders, chỉ lưu tạm ở pending_orders
   if(limited(req,15))return bad(res,'Bạn gửi quá nhanh, vui lòng thử lại sau ít phút',429)
   const name=String(b.name||'').trim().slice(0,100),phone=String(b.phone||'').replace(/[\s.\-]/g,'')
-  const address=String(b.address||'').trim().slice(0,300),note=String(b.note||'').trim().slice(0,500)
-  if(!name||!address)return bad(res,'Vui lòng nhập họ tên và địa chỉ')
+  const note=String(b.note||'').trim().slice(0,500)
+  const sh=b.ship||{},part=v=>String(v||'').trim().slice(0,120)
+  const region=sh.region==='danang'?'danang':'other',street=part(sh.street),ward=part(sh.ward),province=part(sh.province)
+  if(!name)return bad(res,'Vui lòng nhập họ tên')
+  if(region==='danang'&&(street.length<3||ward.length<2))return bad(res,'Vui lòng nhập số nhà, tên đường và phường/xã')
+  if(region==='other'&&(province.length<2||street.length<3))return bad(res,'Vui lòng nhập tỉnh/thành phố và địa chỉ chi tiết')
+  const address=region==='danang'?`${street}, ${ward}, Đà Nẵng`:`${street}, ${province}`
   if(!PHONE.test(phone))return bad(res,'Số điện thoại không hợp lệ')
   const items=Array.isArray(b.items)?b.items:[]
   if(!items.length||items.length>20)return bad(res,'Đơn hàng cần từ 1 đến 20 dòng')
@@ -45,12 +51,14 @@ export default async function handler(req,res){
     if(p.in_stock===false)return bad(res,`Sản phẩm "${p.name}" đã hết hàng, vui lòng chọn sản phẩm khác`)
     lines.push({product_id:p.id,product_name:p.name,color_name:i.color,unit_price_vnd:p.price_vnd,quantity:i.quantity})
   }
-  const total=lines.reduce((t,l)=>t+l.unit_price_vnd*l.quantity,0)
+  const items_total=lines.reduce((t,l)=>t+l.unit_price_vnd*l.quantity,0)
+  const ship=await calcShip({region,ward,street})   // phí ship luôn do máy chủ tính, không tin số từ trình duyệt
+  const total=items_total+ship.fee
   const {data:code}=await s.rpc('next_order_code')
   await s.from('pending_orders').delete().lt('created_at',new Date(Date.now()-7*864e5).toISOString())   // dọn đơn chờ quá 7 ngày
-  const {error}=await s.from('pending_orders').insert({code,phone,total_vnd:total,payload:{name,address,note,lines}})
+  const {error}=await s.from('pending_orders').insert({code,phone,total_vnd:total,payload:{name,address,note,lines,shipping_fee_vnd:ship.fee}})
   if(error)return bad(res,'Không tạo được đơn, vui lòng thử lại',500)
   const {BANK_ID,BANK_ACCOUNT,BANK_ACCOUNT_NAME}=process.env
   const qr_url=`https://img.vietqr.io/image/${BANK_ID}-${BANK_ACCOUNT}-compact2.png?amount=${total}&addInfo=${encodeURIComponent('thanh toan don hang #'+code)}&accountName=${encodeURIComponent(BANK_ACCOUNT_NAME||'')}`
-  res.json({code,total_vnd:total,qr_url,token:sign(code,total,phone),auto:AUTO()})
+  res.json({code,total_vnd:total,items_total,shipping_fee_vnd:ship.fee,ship_note:ship.note,qr_url,token:sign(code,total,phone),auto:AUTO()})
 }

@@ -5,8 +5,8 @@ let shared
 export const db=fresh=>fresh?make():(shared||=make())   // dùng lại kết nối giữa các request; đăng nhập luôn dùng client riêng
 export const PHONE=/^(0|\+84)(3|5|7|8|9)\d{8}$/
 const hits=new Map() // best-effort theo instance; production nên dùng Upstash Redis
-export function limited(req,max=5,win=600000){
-  const ip=String(req.headers['x-forwarded-for']||'').split(',')[0].trim()||'x',n=Date.now()
+export function limited(req,max=5,win=600000,bucket=''){   // bucket: mỗi nhóm thao tác đếm riêng, để tính phí ship không làm hết lượt đặt hàng
+  const ip=bucket+'|'+(String(req.headers['x-forwarded-for']||'').split(',')[0].trim()||'x'),n=Date.now()
   const a=(hits.get(ip)||[]).filter(t=>n-t<win);a.push(n);hits.set(ip,a);return a.length>max
 }
 export function body(req){try{return typeof req.body==='string'?JSON.parse(req.body):req.body||{}}catch{return {}}}
@@ -16,10 +16,10 @@ export async function notify(text){
   try{await fetch(`https://api.telegram.org/bot${t}/sendMessage`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:c,text})})}catch{}
 }
 // tạo đơn thật (trạng thái đã thanh toán) + báo Telegram. Gọi lại nhiều lần với cùng mã đơn vẫn chỉ tạo 1 đơn
-export async function createPaidOrder(s,{code,name,phone,address,note,total,lines,status='paid'}){
+export async function createPaidOrder(s,{code,name,phone,address,note,total,lines,status='paid',shipping_fee_vnd=0}){
   const {data:ex}=await s.from('orders').select('code,total_vnd').eq('code',code).maybeSingle()
   if(ex)return {ok:true,existed:true}
-  const {data:o,error}=await s.from('orders').insert({code,customer_name:name,phone,address,note,total_vnd:total,status}).select('id').single()
+  const {data:o,error}=await s.from('orders').insert({code,customer_name:name,phone,address,note,total_vnd:total,shipping_fee_vnd,status}).select('id').single()
   if(error)return {ok:false}
   const {error:e2}=await s.from('order_items').insert(lines.map(l=>({...l,order_id:o.id})))
   if(e2){await s.from('orders').delete().eq('id',o.id);return {ok:false}}
@@ -29,6 +29,7 @@ export async function createPaidOrder(s,{code,name,phone,address,note,total,line
     `SĐT/Zalo: ${phone}`,
     ...lines.flatMap(l=>[`Tên sản phẩm: ${l.product_name} (${l.color_name})`,`Số lượng: x${l.quantity}`]),
     `Địa chỉ nhận hàng: ${address}`,
+    `Phí ship: ${shipping_fee_vnd?vnd(shipping_fee_vnd):'Miễn phí'}`,
     `Tổng đơn hàng: ${total.toLocaleString('vi-VN')}đ`
   ].join('\n'))
   return {ok:true}
