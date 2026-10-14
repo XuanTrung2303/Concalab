@@ -112,7 +112,7 @@
    <div class="lbl">Màu sắc: {{cur.p.colors[cur.ci].name}}</div>
    <div class="cols"><button v-for="(c,j) in cur.p.colors" :key="c.name" :class="{on:j==cur.ci}" @click="cur.ci=j"><i :style="{background:c.hex}"></i>{{c.name}}</button></div>
    <div class="lbl">Số lượng</div>
-   <div class="qty"><button @click="cur.q=Math.max(1,cur.q-1)" aria-label="Giảm">−</button><span>{{cur.q}}</span><button @click="cur.q=Math.min(99,cur.q+1)" aria-label="Tăng">+</button></div>
+   <div class="qty"><button :disabled="cur.q<=1" @click="cur.q=Math.max(1,cur.q-1)" aria-label="Giảm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg></button><span>{{cur.q}}</span><button :disabled="cur.q>=99" @click="cur.q=Math.min(99,cur.q+1)" aria-label="Tăng"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></div>
    <p v-if="oos(cur.p)" class="res">Sản phẩm này đã hết hàng, vui lòng chọn sản phẩm khác</p>
    <div class="buy" :class="{dim:oos(cur.p)}"><div class="mprice">{{vnd(cur.p.price_vnd*cur.q)}}</div>
     <div class="mact"><button class="btn o" @click="addTo(cur.p,cur.ci,cur.q,'Đã thêm vào giỏ')&&pd.close()">Thêm vào giỏ</button><button class="btn c" @click="addTo(cur.p,cur.ci,cur.q,'')&&(pd.close(),openCart())">Mua ngay</button></div></div>
@@ -153,7 +153,7 @@
     <div class="ci" v-for="(o,k) in lines" :key="o.id+o.ci">
      <div class="t" v-html="pic(o.p,o.ci)"></div>
      <div><b>{{o.p.name}}</b><small>{{o.p.colors[o.ci].name}} · {{vnd(o.p.price_vnd)}}<template v-if="oos(o.p)"> · <b style="color:#ef4444">Hết hàng</b></template></small>
-      <div class="qty"><button @click="chq(o,-1)" aria-label="Giảm">−</button><span>{{o.q}}</span><button @click="chq(o,1)" aria-label="Tăng">+</button></div>
+      <div class="qty"><button :disabled="o.q<=1" @click="chq(o,-1)" aria-label="Giảm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg></button><span>{{o.q}}</span><button :disabled="o.q>=99" @click="chq(o,1)" aria-label="Tăng"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></div>
       <div class="cswatch" v-if="o.p.colors.length>1"><button v-for="(c,j) in o.p.colors" :key="c.name" type="button" :class="{on:j==o.ci}" :style="{background:c.hex}" :title="c.name" :aria-label="'Đổi sang màu '+c.name" @click="setColor(o,j)"></button></div></div>
      <div class="rt">{{vnd(o.p.price_vnd*o.q)}}<button @click="rm(o)">Xóa</button></div>
     </div>
@@ -435,4 +435,17 @@ html{-webkit-tap-highlight-color:transparent}
 .cnav svg,.pgn button svg{width:18px;height:18px;display:block}
 .pgn button{display:inline-grid;place-items:center}
 @media(max-width:420px){#pill .go svg{width:26px;height:26px}}
+/* ---- ô chọn (select) cao và đều bằng các ô nhập khác trong form, kể cả trên iPhone ---- */
+html body select{-webkit-appearance:none;appearance:none;padding-right:42px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238aa0aa' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;background-size:16px;cursor:pointer}
+html body input:not([type=file]):not([type=checkbox]):not([type=radio]):not([type=color]),html body select{line-height:22px}   /* cùng chiều cao chữ => cùng chiều cao ô */
+/* ---- nút − và + chọn số lượng: biểu tượng vẽ sẵn, nằm giữa nút, to và dễ bấm ở cửa sổ chi tiết ---- */
+.qty button{display:grid;place-items:center;padding:0;line-height:0;transition:transform .15s,background .2s,color .2s}
+.qty button svg{width:18px;height:18px}
+.qty button:active{transform:scale(.9)}
+.qty button:disabled{opacity:.35;cursor:default}
+.md .qty{padding:5px;gap:8px}
+.md .qty button{width:46px;height:46px}
+.md .qty button svg{width:20px;height:20px}
+.md .qty span{min-width:52px;font-size:19px}
+@media (hover:hover){.qty button:not(:disabled):hover{background:var(--ink);color:var(--stage)}}
 </style>
