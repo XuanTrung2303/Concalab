@@ -105,10 +105,7 @@
   <div class="minfo">
    <span class="tag">{{cur.p.category}}</span><h3>{{cur.p.name}}</h3><p>{{cur.p.description}}</p>
    <div class="specs"><div>Kích thước<b>{{cur.p.size_mm}} mm</b></div><div>Vật liệu<b>{{cur.p.material}}</b></div></div>
-   <template v-if="cur.p.has_content">
-    <button type="button" class="btn s o descbtn" @click="toggleDesc">{{cur.showDesc?'Ẩn mô tả sản phẩm ▴':'Xem mô tả sản phẩm ▾'}}</button>
-    <div v-if="cur.showDesc" class="rich" v-html="cur.html"></div>
-   </template>
+   <button v-if="cur.p.has_content" type="button" class="btn s o descbtn" @click="openDesc">Xem mô tả sản phẩm</button>
    <div class="lbl">Màu sắc: {{cur.p.colors[cur.ci].name}}</div>
    <div class="cols"><button v-for="(c,j) in cur.p.colors" :key="c.name" :class="{on:j==cur.ci}" @click="cur.ci=j"><i :style="{background:c.hex}"></i>{{c.name}}</button></div>
    <div class="lbl">Số lượng</div>
@@ -118,6 +115,11 @@
     <div class="mact"><button class="btn o" @click="addTo(cur.p,cur.ci,cur.q,'Đã thêm vào giỏ')&&pd.close()">Thêm vào giỏ</button><button class="btn c" @click="addTo(cur.p,cur.ci,cur.q,'')&&(pd.close(),openCart())">Mua ngay</button></div></div>
   </div>
  </div>
+</dialog>
+
+<dialog ref="dd" class="descd" aria-label="Mô tả sản phẩm" @click.self="dd.close()">
+ <button class="x" @click="dd.close()" aria-label="Đóng"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+ <div class="cd"><h3>{{descTitle}}</h3><div class="rich full" v-html="descHtml"></div></div>
 </dialog>
 
 <dialog ref="cd" aria-label="Giỏ hàng" @click.self="cd.close()">
@@ -243,19 +245,20 @@ function setColor(o,j){   // đổi màu ngay trong giỏ; trùng với dòng c�
 }
 function chq(o,d){const r=cart.value.find(x=>x.id==o.id&&x.ci==o.ci);r.q=Math.max(1,Math.min(99,r.q+d));save()}
 function rm(o){cart.value=cart.value.filter(x=>!(x.id==o.id&&x.ci==o.ci));save()}
-const openP=p=>{cur.value={p,ci:0,q:1,showDesc:false,html:''};pd.value.showModal()}
+const openP=p=>{cur.value={p,ci:0,q:1};pd.value.showModal()}
 DOMPurify.addHook('afterSanitizeAttributes',n=>{if(n.tagName==='A'){n.setAttribute('target','_blank');n.setAttribute('rel','noopener noreferrer')}})
 const fixLists=h=>h.replace(/<ol>((?:(?!<\/ol>)[\s\S])*?)<\/ol>/g,(m,i)=>/data-list="bullet"/.test(i)?'<ul>'+i+'</ul>':m)   // Quill 2 dùng <ol> cho cả danh sách chấm
-const descCache={}
-async function toggleDesc(){   // mô tả chi tiết chỉ tải khi khách bấm xem
-  const c=cur.value;c.showDesc=!c.showDesc
-  if(!c.showDesc||c.html)return
-  if(descCache[c.p.id]){c.html=descCache[c.p.id];return}
-  c.html='<p>Đang tải…</p>'
+const descCache={},dd=ref(null),descHtml=ref(''),descTitle=ref('')
+const cleanHtml=h=>DOMPurify.sanitize(fixLists(h).replace(/&nbsp;/g,' '))   // Quill đổi dấu cách thành &nbsp; làm chữ không xuống dòng được
+async function openDesc(){   // mô tả chi tiết mở ra popup riêng, cửa sổ sản phẩm phía sau giữ nguyên; chỉ tải khi khách bấm xem
+  const p=cur.value.p;descTitle.value=p.name
+  descHtml.value=descCache[p.id]||'<p>Đang tải…</p>'
+  dd.value.showModal()
+  if(descCache[p.id])return
   try{
-    const r=await fetch('/api/product?id='+encodeURIComponent(c.p.id));const j=await r.json()
-    const h=DOMPurify.sanitize(fixLists(j.content_html||''));descCache[c.p.id]=h;c.html=h||'<p>Chưa có mô tả chi tiết.</p>'
-  }catch{c.html='<p>Không tải được mô tả, vui lòng thử lại.</p>';setTimeout(()=>{if(cur.value===c)c.html=''},1500)}
+    const r=await fetch('/api/product?id='+encodeURIComponent(p.id));const j=await r.json()
+    const h=cleanHtml(j.content_html||'');descCache[p.id]=h;descHtml.value=h||'<p>Chưa có mô tả chi tiết.</p>'
+  }catch{descHtml.value='<p>Không tải được mô tả, vui lòng thử lại.</p>'}
 }
 const openCart=()=>{if(!cd.value.open)cd.value.showModal()}
 const goShop=()=>{location.hash='#shop'}
@@ -385,7 +388,7 @@ onMounted(async()=>{
 .spin{width:16px;height:16px;border-radius:50%;border:2px solid var(--bd);border-top-color:var(--lc);animation:ccspin 1s linear infinite;flex:none}
 @keyframes ccspin{to{transform:rotate(360deg)}}
 .descbtn{margin-top:12px;align-self:flex-start}
-.rich{margin-top:10px;padding:14px 16px;border-radius:16px;background:var(--row);max-height:280px;overflow:auto;font-size:15px;line-height:1.6;text-align:left;overflow-wrap:anywhere}
+.rich{margin-top:10px;padding:14px 16px;border-radius:16px;background:var(--row);max-height:280px;overflow:auto;font-size:15px;line-height:1.6;text-align:left;overflow-wrap:break-word}
 .rich img{max-width:100%;height:auto;border-radius:10px;display:block;margin:8px 0}
 .rich p{margin:0 0 .6em}.rich ul,.rich ol{padding-left:22px;margin:0 0 .6em}
 .rich a{color:var(--lc);text-decoration:underline}
@@ -448,4 +451,6 @@ html body input:not([type=file]):not([type=checkbox]):not([type=radio]):not([typ
 .md .qty button svg{width:20px;height:20px}
 .md .qty span{min-width:52px;font-size:19px}
 @media (hover:hover){.qty button:not(:disabled):hover{background:var(--ink);color:var(--stage)}}
+dialog.descd{width:min(720px,calc(100% - 24px))}
+.rich.full{max-height:none;overflow:visible;background:none;padding:0;margin:0}
 </style>

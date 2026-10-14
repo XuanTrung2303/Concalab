@@ -257,7 +257,7 @@ async function mountEditor(html){
   q.setContents(q.clipboard.convert({html:html||''}),'silent')
 }
 function syncContent(){   // lấy nội dung từ trình soạn thảo trước khi lưu (rỗng thì lưu chuỗi rỗng)
-  if(q&&qEl.value&&q.container===qEl.value)f.value.content_html=(q.getText().trim()||q.root.querySelector('img'))?q.getSemanticHTML():''
+  if(q&&qEl.value&&q.container===qEl.value)f.value.content_html=(q.getText().trim()||q.root.querySelector('img'))?q.getSemanticHTML().replace(/&nbsp;/g,' '):''
 }
 const tabs=[['products','Sản phẩm'],['categories','Danh mục'],['orders','Đơn hàng'],['quotes','Đơn theo yêu cầu']]
 const vnd=n=>Number(n).toLocaleString('vi-VN')+'đ',dt=d=>new Date(d).toLocaleString('vi-VN')
