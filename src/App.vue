@@ -37,9 +37,9 @@
   <div class="shophead">
    <div><h2>Sản phẩm có sẵn</h2><p class="sub">Bấm vào ảnh để xem chi tiết, chọn màu và đặt mua. Giao nhanh, không cần chờ in.</p></div>
    <div class="chipbar">
-    <button class="cnav" :disabled="cs<=0" @click="chipMove(-1)" aria-label="Danh mục trước">‹</button>
+    <button class="cnav" :disabled="cs<=0" @click="chipMove(-1)" aria-label="Danh mục trước"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
     <div class="chipwin"><div class="chips" :style="{'--i':cs}"><button v-for="(c,i) in cats" :key="c" :class="{on:c==cat}" :tabindex="i>=cs&&i<cs+4?0:-1" @click="cat=c">{{c}}</button></div></div>
-    <button class="cnav" :disabled="cs>=cats.length-4" @click="chipMove(1)" aria-label="Danh mục sau">›</button>
+    <button class="cnav" :disabled="cs>=cats.length-4" @click="chipMove(1)" aria-label="Danh mục sau"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
    </div>
   </div>
   <p v-if="loading" class="empty">Đang tải sản phẩm…</p>
@@ -54,9 +54,9 @@
    </article>
   </div>
   <nav class="pgn" v-if="pageCount>1" aria-label="Phân trang sản phẩm">
-   <button :disabled="page<=1" @click="goPage(page-1)" aria-label="Trang trước">‹</button>
+   <button :disabled="page<=1" @click="goPage(page-1)" aria-label="Trang trước"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
    <button v-for="n in pageCount" :key="n" :class="{on:n==page}" :aria-current="n==page?'page':null" @click="goPage(n)">{{n}}</button>
-   <button :disabled="page>=pageCount" @click="goPage(page+1)" aria-label="Trang sau">›</button>
+   <button :disabled="page>=pageCount" @click="goPage(page+1)" aria-label="Trang sau"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
   </nav>
  </div>
 
@@ -99,7 +99,7 @@
 </div>
 
 <dialog ref="pd" aria-label="Chi tiết sản phẩm" @click.self="pd.close()">
- <button class="x" @click="pd.close()" aria-label="Đóng">✕</button>
+ <button class="x" @click="pd.close()" aria-label="Đóng"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
  <div class="md" v-if="cur">
   <div class="mimg" :style="{background:'linear-gradient(135deg,'+BG[0]+','+BG[1]+')'}" v-html="pic(cur.p,cur.ci,true)"></div>
   <div class="minfo">
@@ -121,7 +121,7 @@
 </dialog>
 
 <dialog ref="cd" aria-label="Giỏ hàng" @click.self="cd.close()">
- <button class="x" @click="cd.close()" aria-label="Đóng">✕</button>
+ <button class="x" @click="cd.close()" aria-label="Đóng"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
  <div class="cd">
   <template v-if="done">
    <h3>Đặt hàng thành công 🎉</h3>
@@ -188,7 +188,7 @@
  <a href="#shop"><span class="e">🛍️</span>Shop</a>
  <a href="#custom"><span class="e">✏️</span>Đặt in</a>
  <button class="i" @click="openCart"><span class="e">🧺</span>Giỏ<span id="cc" :class="{z:!count}">{{count}}</span></button>
- <button class="go" @click="openCart" aria-label="Mở giỏ hàng">→</button>
+ <button class="go" @click="openCart" aria-label="Mở giỏ hàng"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
 </div>
 </template>
 
@@ -426,4 +426,13 @@ html{-webkit-tap-highlight-color:transparent}
  .md .buy{position:sticky;bottom:0;z-index:3;background:var(--stage);padding:12px 0 calc(12px + env(safe-area-inset-bottom,0px));margin-top:8px;border-top:1px solid var(--bd)}   /* giá và nút Thêm giỏ luôn nằm sát đáy, khỏi phải cuộn */
  .cd{padding:22px 16px}
 }
+/* ---- biểu tượng ✕ → ‹ › vẽ bằng SVG: nằm đúng giữa nút, giống nhau trên mọi thiết bị ---- */
+.x{display:grid;place-items:center;padding:0;line-height:0}
+.x svg{width:18px;height:18px}
+#pill .go{display:grid;place-items:center;padding:0;line-height:0}
+#pill .go svg{width:30px;height:30px}
+.cnav{padding:0}
+.cnav svg,.pgn button svg{width:18px;height:18px;display:block}
+.pgn button{display:inline-grid;place-items:center}
+@media(max-width:420px){#pill .go svg{width:26px;height:26px}}
 </style>

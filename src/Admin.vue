@@ -26,7 +26,7 @@
  </header>
  <main>
   <section v-if="tab=='products'">
-   <div class="sh"><div class="sl"><button class="btn s" @click="edit()">+ Thêm sản phẩm</button></div><h2>Sản phẩm</h2><div class="sbar"><span class="si">🔍</span><input type="search" v-model="search.products" placeholder="Tìm sản phẩm theo tên hoặc danh mục…" @input="onSearch('products')"><button v-if="search.products" type="button" class="sx" @click="search.products='';onSearch('products',0)" aria-label="Xóa tìm kiếm">✕</button></div></div>
+   <div class="sh"><div class="sl"><button class="btn s" @click="edit()">+ Thêm sản phẩm</button></div><h2>Sản phẩm</h2><div class="sbar"><span class="si">🔍</span><input type="search" v-model="search.products" placeholder="Tìm sản phẩm theo tên hoặc danh mục…" @input="onSearch('products')"><button v-if="search.products" type="button" class="sx" @click="search.products='';onSearch('products',0)" aria-label="Xóa tìm kiếm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div></div>
    <div class="grid">
     <div class="card pcard" v-for="p in products" :key="p.id">
      <img v-if="p.image_url" :src="p.image_url" class="pimg2" alt="" loading="lazy" decoding="async"><div v-else class="pimg2 ph">3D</div>
@@ -40,7 +40,7 @@
   </section>
 
   <section v-else-if="tab=='categories'">
-   <div class="sh"><div class="sl"><button class="btn s" @click="editCat()">+ Thêm danh mục</button></div><h2>Danh mục sản phẩm</h2><div class="sbar"><span class="si">🔍</span><input type="search" v-model="search.categories" placeholder="Tìm danh mục…"><button v-if="search.categories" type="button" class="sx" @click="search.categories=''" aria-label="Xóa tìm kiếm">✕</button></div></div>
+   <div class="sh"><div class="sl"><button class="btn s" @click="editCat()">+ Thêm danh mục</button></div><h2>Danh mục sản phẩm</h2><div class="sbar"><span class="si">🔍</span><input type="search" v-model="search.categories" placeholder="Tìm danh mục…"><button v-if="search.categories" type="button" class="sx" @click="search.categories=''" aria-label="Xóa tìm kiếm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div></div>
    <div class="grid">
     <div class="card ccard" :class="{hid:!c.is_visible}" v-for="c in catsShown" :key="c.id">
      <div class="gr"><b>{{c.name}}</b><small>{{c.count}} sản phẩm · {{c.is_visible?'Đang hiện':'Đang ẩn'}}</small></div>
@@ -56,7 +56,7 @@
   </section>
 
   <section v-else-if="tab=='orders'">
-   <div class="sh"><div class="sl"></div><h2>Đơn hàng sản phẩm có sẵn</h2><div class="sbar"><span class="si">🔍</span><input type="search" v-model="search.orders" placeholder="Tìm theo mã đơn, tên khách, SĐT, địa chỉ, sản phẩm…" @input="onSearch('orders')"><button v-if="search.orders" type="button" class="sx" @click="search.orders='';onSearch('orders',0)" aria-label="Xóa tìm kiếm">✕</button></div></div>
+   <div class="sh"><div class="sl"></div><h2>Đơn hàng sản phẩm có sẵn</h2><div class="sbar"><span class="si">🔍</span><input type="search" v-model="search.orders" placeholder="Tìm theo mã đơn, tên khách, SĐT, địa chỉ, sản phẩm…" @input="onSearch('orders')"><button v-if="search.orders" type="button" class="sx" @click="search.orders='';onSearch('orders',0)" aria-label="Xóa tìm kiếm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div></div>
    <div class="grid">
    <div class="card" v-for="o in orders" :key="o.id">
     <div class="hd"><b>{{o.code}}</b><select class="st" :style="{'--sc':SC[o.status]}" :value="o.status" :disabled="isLocked('order',o)" @change="setS('order.status',o,$event.target.value,$event)"><option v-for="(l,k) in ordFor(o)" :key="k" :value="k" :style="{color:SC[k]}">{{l}}</option></select></div>
@@ -77,7 +77,7 @@
   </section>
 
   <section v-else-if="tab=='quotes'">
-   <div class="sh"><div class="sl"></div><h2>Đơn theo yêu cầu</h2><div class="sbar"><span class="si">🔍</span><input type="search" v-model="search.quotes" placeholder="Tìm theo tên khách, SĐT, vật liệu, mô tả…" @input="onSearch('quotes')"><button v-if="search.quotes" type="button" class="sx" @click="search.quotes='';onSearch('quotes',0)" aria-label="Xóa tìm kiếm">✕</button></div></div>
+   <div class="sh"><div class="sl"></div><h2>Đơn theo yêu cầu</h2><div class="sbar"><span class="si">🔍</span><input type="search" v-model="search.quotes" placeholder="Tìm theo tên khách, SĐT, vật liệu, mô tả…" @input="onSearch('quotes')"><button v-if="search.quotes" type="button" class="sx" @click="search.quotes='';onSearch('quotes',0)" aria-label="Xóa tìm kiếm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div></div>
    <p class="sub">Các yêu cầu báo giá khách gửi từ trang chủ.</p>
    <div class="grid st">
    <div class="card" v-for="q in quotes" :key="q.id">
@@ -122,7 +122,7 @@
   </section>
  </main></div>
 
- <dialog ref="pf" @click.self="pf.close()"><button class="x" @click="pf.close()" aria-label="Đóng">✕</button>
+ <dialog ref="pf" @click.self="pf.close()"><button class="x" @click="pf.close()" aria-label="Đóng"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   <form class="pform" v-if="f" @submit.prevent="saveP">
    <h3>{{f.id?'Sửa sản phẩm':'Thêm sản phẩm'}}</h3>
    <label>Ảnh chính (ảnh của màu mặc định, tỉ lệ 4:3)<div class="logo"><img v-if="f.image_url" :src="f.image_url" class="th big" alt=""><input type="file" accept="image/*" @change="pick($event,u=>f.image_url=u,900)"></div></label>
@@ -141,7 +141,7 @@
     <img v-if="c.image_url" :src="c.image_url" class="th" alt="">
     <label class="btn s o up">{{c.image_url?'Đổi ảnh':'Chọn ảnh'}}<input type="file" accept="image/*" style="display:none" @change="pick($event,u=>c.image_url=u,900)"></label>
     <button v-if="c.image_url" type="button" class="btn s o" @click="c.image_url=''">Bỏ ảnh</button>
-    <button type="button" class="btn s o" @click="f.colors.splice(i,1)" aria-label="Xóa màu">✕</button>
+    <button type="button" class="btn s o" @click="f.colors.splice(i,1)" aria-label="Xóa màu"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
    </div></template>
    <button type="button" class="btn s o" @click="f.colors.push({name:'',hex:'#00bcd4',image_url:''})">+ Thêm màu phụ</button>
    <label class="chk"><input type="checkbox" v-model="f.in_stock"> Còn hàng (bỏ chọn khi đã hết hàng)</label>
@@ -152,14 +152,14 @@
  <dialog ref="dd" style="width:min(420px,calc(100% - 24px))" @click.self="dd.close()"><div class="cd">
   <h3>Xóa sản phẩm?</h3><p>Bạn sắp xóa “{{del&&del.name}}”. Hành động này không thể hoàn tác.</p>
   <div class="mact"><button class="btn o" @click="dd.close()">Hủy</button><button class="btn" style="background:#d93b3b;color:#fff" @click="doDel">Xác nhận xóa</button></div></div></dialog>
- <dialog ref="cf" style="width:min(420px,calc(100% - 24px))" @click.self="cf.close()"><button class="x" @click="cf.close()" aria-label="Đóng">✕</button>
+ <dialog ref="cf" style="width:min(420px,calc(100% - 24px))" @click.self="cf.close()"><button class="x" @click="cf.close()" aria-label="Đóng"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   <form class="pform" @submit.prevent="saveCat"><h3>{{cid?'Sửa danh mục':'Thêm danh mục'}}</h3>
    <label>Tên danh mục<input v-model="cn" maxlength="50" required></label>
    <button class="btn c" :disabled="busy">Lưu danh mục</button></form></dialog>
  <dialog ref="cdd" style="width:min(420px,calc(100% - 24px))" @click.self="cdd.close()"><div class="cd">
   <h3>Xóa danh mục?</h3><p>Bạn sắp xóa danh mục “{{cdel&&cdel.name}}”. Chỉ xóa được khi danh mục không còn sản phẩm nào.</p>
   <div class="mact"><button class="btn o" @click="cdd.close()">Hủy</button><button class="btn" style="background:#d93b3b;color:#fff" @click="doDelCat">Xác nhận xóa</button></div></div></dialog>
- <dialog ref="vd" style="width:min(560px,calc(100% - 24px))" @click.self="vd.close()"><button class="x" @click="vd.close()" aria-label="Đóng">✕</button>
+ <dialog ref="vd" style="width:min(560px,calc(100% - 24px))" @click.self="vd.close()"><button class="x" @click="vd.close()" aria-label="Đóng"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   <div class="cd" v-if="vo">
    <h3>Đơn {{vo.code}}</h3>
    <small style="color:var(--mut)">{{dt(vo.created_at)}} · <b :style="{color:SC[vo.status]}">{{ORD[vo.status]}}</b></small>
@@ -431,4 +431,7 @@ select.st option{background:var(--stage);font-weight:600}
 @media(max-width:860px){.sh{grid-template-columns:1fr;justify-items:center}.sh .sl{justify-self:center}.sh .sl:empty{display:none}.sh .sbar{justify-self:center;width:min(100%,440px)}.sh h2{white-space:normal}}
 @media (hover:none){html .btn:hover{transform:none;box-shadow:none}}
 @media (pointer:coarse){html body input,html body select,html body textarea{font-size:16px!important}}
+.x{display:grid;place-items:center;padding:0;line-height:0}
+.x svg{width:18px;height:18px}
+.sbar .sx{display:grid;place-items:center;padding:0;line-height:0}
 </style>
