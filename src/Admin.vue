@@ -25,7 +25,34 @@
   </div>
  </header>
  <main>
-  <section v-if="tab=='products'">
+  <section v-if="tab=='overview'">
+   <div class="sh"><div class="sl"></div><h2>Tổng quan</h2><span></span></div>
+   <p class="empty" v-if="statsLoading&&!ov">Đang tải số liệu…</p>
+   <div class="kpis">
+    <div class="kpi" v-for="k in kpis" :key="k.t" :style="{'--kc':k.c}"><span class="kt">{{k.t}}</span><b class="kn">{{k.n}}</b><span class="ks">{{k.s}}</span></div>
+   </div>
+   <div class="card statbox">
+    <div class="sthead"><div><b>Thống kê đơn hàng và doanh thu</b><small>Đơn hàng, đang giao và đã giao gồm cả đơn có sẵn và đơn theo yêu cầu (đã được khách đồng ý). Doanh thu chỉ tính đơn có sẵn đã nhận tiền, không gồm phí ship. Đơn xếp theo ngày tạo.</small></div>
+     <div class="seg" role="tablist"><button v-for="p in [['month','Tháng'],['quarter','Quý'],['year','Năm']]" :key="p[0]" :class="{on:period==p[0]}" @click="period=p[0]">{{p[1]}}</button></div></div>
+    <div class="charts">
+     <div class="chbox" v-for="c in charts" :key="c.title">
+      <b>{{c.title}} <small>{{period=='month'?'12 tháng gần nhất':period=='quarter'?'8 quý gần nhất':'5 năm gần nhất'}}</small></b>
+      <svg class="lchart" :viewBox="VB" role="img" :aria-label="'Biểu đồ '+c.title">
+       <g v-for="t in c.g.ticks" :key="t.y"><line :x1="CH.L" :x2="CH.W-CH.R" :y1="t.y" :y2="t.y" class="gl"/><text :x="CH.L-8" :y="t.y+4" text-anchor="end" class="ax">{{t.text}}</text></g>
+       <path :d="c.g.area" :fill="c.color" opacity=".14"/>
+       <path :d="c.g.line" fill="none" :stroke="c.color" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round"/>
+       <g v-for="(p,i) in c.g.pts" :key="i"><circle :cx="p.x" :cy="p.y" r="4.5" :fill="c.color" class="pt"><title>{{p.label}}: {{c.full(p.v)}}</title></circle><text :x="p.x" :y="CH.H-10" text-anchor="middle" class="ax">{{p.label}}</text></g>
+      </svg>
+     </div>
+    </div>
+    <div class="tscroll"><table class="stab">
+     <thead><tr><th>{{period=='month'?'Tháng':period=='quarter'?'Quý':'Năm'}}</th><th>Đơn hàng</th><th>Đang giao</th><th>Đã giao</th><th>Doanh thu</th></tr></thead>
+     <tbody><tr v-for="(r,i) in rowsDesc" :key="r.label" :class="{cur:i==0}"><td>{{r.label}}</td><td>{{r.orders}}</td><td>{{r.shipping}}</td><td>{{r.done}}</td><td>{{vnd(r.revenue)}}</td></tr></tbody>
+    </table></div>
+   </div>
+  </section>
+
+  <section v-else-if="tab=='products'">
    <div class="sh"><div class="sl"><button class="btn s" @click="edit()">+ Thêm sản phẩm</button></div><h2>Sản phẩm</h2><div class="sbar"><span class="si">🔍</span><input type="search" v-model="search.products" placeholder="Tìm sản phẩm theo tên hoặc danh mục…" @input="onSearch('products')"><button v-if="search.products" type="button" class="sx" @click="search.products='';onSearch('products',0)" aria-label="Xóa tìm kiếm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div></div>
    <div class="grid">
     <div class="card pcard" v-for="p in products" :key="p.id">
@@ -210,7 +237,7 @@ const doDelCat=()=>run(async()=>{await api('category.delete',{id:cdel.value.id})
 const vo=ref(null),vd=ref(null)
 const openO=o=>{vo.value=o;vd.value.showModal()}   // popup chi tiết đơn
 async function init(){   // khởi động bằng 1 request, rồi tải sẵn đơn hàng ở nền để bấm tab là có ngay
-  tab.value='products';loading.value=true
+  tab.value='overview';loading.value=true;loadStats()
   try{const j=await api('init',{page:pg.products});Object.assign(prof,j.me);cats.value=j.categories;cache.set(ck('products',pg.products,''),j.products);products.value=j.products.rows;total.products=j.products.total}
   catch(e){toast(e.message)}
   loading.value=false
@@ -259,7 +286,56 @@ async function mountEditor(html){
 function syncContent(){   // lấy nội dung từ trình soạn thảo trước khi lưu (rỗng thì lưu chuỗi rỗng)
   if(q&&qEl.value&&q.container===qEl.value)f.value.content_html=(q.getText().trim()||q.root.querySelector('img'))?q.getSemanticHTML().replace(/&nbsp;/g,' '):''
 }
-const tabs=[['products','Sản phẩm'],['categories','Danh mục'],['orders','Đơn hàng'],['quotes','Đơn theo yêu cầu']]
+// ---- Tổng quan: thống kê đơn hàng và doanh thu ----
+// STATS-BEGIN
+function periodsOf(kind,months,nowMs){   // gộp số liệu tháng thành tháng / quý / năm (giờ Việt Nam)
+  const now=new Date(nowMs+7*36e5),cy=now.getUTCFullYear(),cm=now.getUTCMonth()+1
+  const src={};for(const r of months||[])src[r.ym]=r
+  const sum=keys=>{const a={orders:0,shipping:0,done:0,cancelled:0,pending:0,revenue:0,custom_orders:0,custom_shipping:0,custom_done:0};for(const k of keys){const r=src[k];if(r)for(const f in a)a[f]+=Number(r[f]||0)}return a}
+  const mk=(y,m)=>y+'-'+String(m).padStart(2,'0'),out=[]
+  if(kind==='month')for(let i=11;i>=0;i--){let y=cy,m=cm-i;while(m<1){m+=12;y--}out.push({label:'Tháng '+m+'/'+y,tick:m+'/'+String(y).slice(2),...sum([mk(y,m)])})}
+  if(kind==='quarter'){let q=Math.ceil(cm/3),y=cy;const list=[];for(let i=0;i<8;i++){list.unshift({y,q});q--;if(q<1){q=4;y--}}
+    for(const p of list)out.push({label:'Quý '+p.q+'/'+p.y,tick:'Q'+p.q+'/'+String(p.y).slice(2),...sum([0,1,2].map(i=>mk(p.y,p.q*3-2+i)))})}
+  if(kind==='year')for(let y=cy-4;y<=cy;y++)out.push({label:'Năm '+y,tick:String(y),...sum(Array.from({length:12},(_,i)=>mk(y,i+1)))})
+  return out
+}
+const CH={W:600,H:230,L:58,R:16,T:16,B:34}
+const VB='0 0 '+CH.W+' '+CH.H
+const niceMax=m=>{if(m<=0)return 1e6;const p=Math.pow(10,Math.floor(Math.log10(m))),f=m/p;return (f<=1?1:f<=2?2:f<=5?5:10)*p}
+const dec=(x,d)=>(+x.toFixed(d)).toLocaleString('vi-VN')   // dấu phẩy thập phân kiểu Việt Nam
+const short=n=>n>=1e9?dec(n/1e9,1)+' tỷ':n>=1e6?dec(n/1e6,1)+' tr':n>=1e3?dec(n/1e3,n<1e4?1:0)+'k':String(Math.round(n))
+function chartGeom(vals,labels,fmt,int){   // đường + vùng tô + các điểm cho biểu đồ đường
+  const n=vals.length,top=Math.max(0,...vals),mx=int?Math.max(4,Math.ceil(top/4)*4):niceMax(top)
+  const iw=CH.W-CH.L-CH.R,ih=CH.H-CH.T-CH.B,base=CH.T+ih
+  const px=i=>CH.L+(n>1?i*iw/(n-1):iw/2),py=v=>CH.T+ih*(1-(mx?v/mx:0))
+  const pts=vals.map((v,i)=>({x:+px(i).toFixed(1),y:+py(v).toFixed(1),v,label:labels[i]}))
+  const line=pts.map((p,i)=>(i?'L':'M')+p.x+' '+p.y).join(' ')
+  const area=n?line+' L'+pts[n-1].x+' '+base+' L'+pts[0].x+' '+base+' Z':''
+  return {pts,line,area,base,ticks:[0,1,2,3,4].map(i=>({y:+(CH.T+ih*(1-i/4)).toFixed(1),text:fmt(mx*i/4)}))}
+}
+// STATS-END
+const ov=ref(null),period=ref('month'),statsLoading=ref(false)
+async function loadStats(){
+  statsLoading.value=!ov.value
+  try{ov.value=await api('stats')}catch(e){toast(e.message)}
+  statsLoading.value=false
+}
+const rows=computed(()=>periodsOf(period.value,ov.value&&ov.value.months,Date.now()))
+const rowsDesc=computed(()=>rows.value.slice().reverse())
+const tot=computed(()=>{const a={orders:0,shipping:0,done:0,revenue:0,custom_orders:0,custom_shipping:0,custom_done:0};for(const r of (ov.value&&ov.value.months)||[])for(const f in a)a[f]+=Number(r[f]||0);return a})
+const mon=computed(()=>periodsOf('month',ov.value&&ov.value.months,Date.now()).slice(-1)[0]||{orders:0,done:0,revenue:0})
+const charts=computed(()=>[
+  {title:'Doanh thu',color:'#a855f7',g:chartGeom(rows.value.map(r=>r.revenue),rows.value.map(r=>r.tick),short,false),full:vnd},
+  {title:'Số đơn hàng',color:'#3b82f6',g:chartGeom(rows.value.map(r=>r.orders),rows.value.map(r=>r.tick),n=>String(Math.round(n)),true),full:v=>v+' đơn'}
+])
+const kpis=computed(()=>{const t=tot.value,m=mon.value
+  return [
+    {t:'Tổng đơn hàng',n:t.orders.toLocaleString('vi-VN'),s:'Có sẵn: '+(t.orders-t.custom_orders)+' · Theo yêu cầu: '+t.custom_orders+' · Tháng này: '+m.orders,c:'#3b82f6'},
+    {t:'Đang giao hàng',n:t.shipping.toLocaleString('vi-VN'),s:'Có sẵn: '+(t.shipping-t.custom_shipping)+' · Theo yêu cầu: '+t.custom_shipping,c:'#f59e0b'},
+    {t:'Đã giao thành công',n:t.done.toLocaleString('vi-VN'),s:'Có sẵn: '+(t.done-t.custom_done)+' · Theo yêu cầu: '+t.custom_done+' · Tháng này: '+m.done,c:'#22c55e'},
+    {t:'Doanh thu',n:vnd(t.revenue),s:'Tiền hàng đơn có sẵn, chưa gồm phí ship · Tháng này: '+vnd(m.revenue),c:'#a855f7'}
+  ]})
+const tabs=[['overview','Tổng quan'],['products','Sản phẩm'],['categories','Danh mục'],['orders','Đơn hàng'],['quotes','Đơn theo yêu cầu']]
 const vnd=n=>Number(n).toLocaleString('vi-VN')+'đ',dt=d=>new Date(d).toLocaleString('vi-VN')
 const tok=ref(localStorage.getItem('cc-at')||''),em=ref(''),pw=ref(''),msg=ref(''),busy=ref(false),tab=ref('products')
 const products=ref([]),orders=ref([]),quotes=ref([])
@@ -297,7 +373,7 @@ function onSearch(t,delay=350){clearTimeout(timers[t]);timers[t]=setTimeout(()=>
 const nm=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').toLowerCase()
 const catsShown=computed(()=>{const k=nm(search.categories.trim());return k?cats.value.filter(c=>nm(c.name).includes(k)):cats.value})
 function goPg(k,n){n=Math.max(1,Math.min(n,pages(k)));if(n===pg[k])return;pg[k]=n;load(k,n);window.scrollTo({top:0,behavior:'smooth'})}
-async function go(t){tab.value=t;if(!tok.value)return;if(L[t])load(t,pg[t]);if(t=='categories')loadCats()}
+async function go(t){tab.value=t;if(!tok.value)return;if(L[t])load(t,pg[t]);if(t=='categories')loadCats();if(t=='overview')loadStats()}
 function edit(p){f.value=p?{...p,colors:[...p.product_colors].sort((a,b)=>a.position-b.position).map(c=>({name:c.name,hex:c.hex,image_url:c.image_url||''}))}:{name:'',category:'',description:'',price_vnd:0,size_mm:'',material:'PLA',badge:'',image_url:'',is_active:true,in_stock:true,sort_order:total.products+1,colors:[{name:'Xanh cyan',hex:'#00bcd4',image_url:''}]};if(!f.value.colors.length)f.value.colors.push({name:'',hex:'#00bcd4',image_url:''});pf.value.showModal();mountEditor(f.value.content_html)}
 const saveP=()=>run(async()=>{syncContent();await api('product.save',{product:f.value});pf.value.close();toast('Đã lưu sản phẩm');cache.clear();go('products')})
 const doDel=()=>run(async()=>{await api('product.delete',{id:del.value.id});dd.value.close();toast('Đã xóa');cache.clear();go('products')})
@@ -434,4 +510,31 @@ select.st option{background:var(--stage);font-weight:600}
 .x{display:grid;place-items:center;padding:0;line-height:0}
 .x svg{width:18px;height:18px}
 .sbar .sx{display:grid;place-items:center;padding:0;line-height:0}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.kpi{position:relative;overflow:hidden;display:grid;gap:6px;padding:18px 18px 16px 22px;border-radius:22px;background:var(--stage);border:1px solid var(--bd)}
+.kpi::before{content:'';position:absolute;inset:0 auto 0 0;width:5px;background:var(--kc)}
+.kpi .kt{color:var(--mut);font-size:14px;font-weight:600}
+.kpi .kn{font-size:28px;font-weight:800;letter-spacing:-.02em;overflow-wrap:anywhere}
+.kpi .ks{color:var(--mut);font-size:13px;line-height:1.4}
+.statbox{gap:18px;padding:20px}
+.sthead{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap}
+.sthead>div:first-child{display:grid;gap:4px;max-width:560px}.sthead small{color:var(--mut);line-height:1.4}
+.seg{display:inline-flex;gap:4px;padding:4px;border-radius:999px;background:var(--row)}
+.seg button{border:0;background:none;color:var(--ink);font:600 14px Outfit,system-ui,sans-serif;padding:8px 20px;border-radius:999px;cursor:pointer}
+.seg button.on{background:var(--ink);color:var(--stage)}
+.charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.chbox{display:grid;gap:8px;padding:14px;border-radius:18px;background:var(--row);min-width:0}
+.chbox small{color:var(--mut);font-weight:500;margin-left:6px}
+.lchart{width:100%;height:auto;display:block}
+.lchart .gl{stroke:var(--bd);stroke-width:1}
+.lchart .ax{fill:var(--mut);font-size:11px;font-family:Outfit,system-ui,sans-serif}
+.lchart .pt{stroke:var(--stage);stroke-width:2}
+.tscroll{overflow-x:auto}
+.stab{width:100%;border-collapse:collapse;font-size:14px;min-width:520px}
+.stab th{text-align:left;color:var(--mut);font-weight:600;padding:10px 12px;border-bottom:1px solid var(--bd)}
+.stab td{padding:11px 12px;border-bottom:1px dashed var(--bd)}
+.stab th:not(:first-child),.stab td:not(:first-child){text-align:right}
+.stab tr.cur td{font-weight:700;background:var(--row)}
+@media(max-width:1000px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.charts{grid-template-columns:1fr}}
+@media(max-width:520px){.kpis{grid-template-columns:1fr}}
 </style>

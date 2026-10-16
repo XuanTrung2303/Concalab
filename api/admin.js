@@ -86,6 +86,10 @@ export default async function handler(req,res){
           me:{email:user.email,name:user.user_metadata?.full_name||'',avatar_url:user.user_metadata?.avatar_url||''},
           products:{rows:pr.data||[],total:pr.count||0},
           categories:(ct.data||[]).map(x=>({...x,count:n[x.name]||0}))})}
+      case 'stats':{   // số liệu theo tháng, trang admin tự gộp thành quý và năm
+        const {data,error}=await s.rpc('stats_monthly')
+        if(error)return E(res,'Chưa chạy file 012_stats.sql trong Supabase SQL Editor')
+        return res.json({months:data||[]})}
       case 'orders':{
         const [f,t]=rng(b)
         let qy=s.from('orders').select('*,order_items(*,products(image_url,product_colors(name,image_url)))',{count:'exact'}).order('created_at',{ascending:false})
