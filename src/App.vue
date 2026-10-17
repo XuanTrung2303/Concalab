@@ -38,7 +38,10 @@
    <div><h2>Sản phẩm có sẵn</h2><p class="sub">Bấm vào ảnh để xem chi tiết, chọn màu và đặt mua. Giao nhanh, không cần chờ in.</p></div>
    <div class="chipbar">
     <button class="cnav" :disabled="cs<=0" @click="chipMove(-1)" aria-label="Danh mục trước"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
-    <div class="chipwin"><div class="chips" :style="{'--i':cs}"><button v-for="(c,i) in cats" :key="c" :class="{on:c==cat}" :tabindex="i>=cs&&i<cs+4?0:-1" @click="cat=c">{{c}}</button></div></div>
+    <div class="chipcol">
+     <div class="chipwin" ref="chipWinEl" @scroll.passive="chipThumb"><div class="chips" :style="{'--i':cs}"><button v-for="(c,i) in cats" :key="c" :class="{on:c==cat}" :tabindex="i>=cs&&i<cs+4?0:-1" @click="cat=c">{{c}}</button></div></div>
+     <div class="ctrack" v-if="thumb.w<99" aria-hidden="true"><i class="cthumb" :style="{width:thumb.w+'%',left:thumb.l+'%'}"></i></div>
+    </div>
     <button class="cnav" :disabled="cs>=cats.length-4" @click="chipMove(1)" aria-label="Danh mục sau"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
    </div>
   </div>
@@ -208,6 +211,17 @@ const shown=computed(()=>products.value.filter(p=>cat.value=='Tất cả'||p.cat
 const cs=ref(0)   // vị trí danh mục đầu tiên đang hiện; mỗi lần chỉ hiện 4 danh mục
 const chipMove=d=>{cs.value=Math.max(0,Math.min(cs.value+d*4,cats.value.length-4))}
 watch(cats,()=>{cs.value=Math.max(0,Math.min(cs.value,cats.value.length-4))})
+// ---- thanh trượt nhỏ dưới danh mục: cho khách biết còn danh mục để vuốt/bấm tiếp ----
+const chipWinEl=ref(null),thumb=ref({w:100,l:0})
+// THUMB-BEGIN
+function thumbOf(o){   // độ dài (w) và vị trí (l) của thanh chỉ báo, đơn vị %
+  if(o.mobile){const max=o.sw-o.cw;if(max<=2)return {w:100,l:0};const w=Math.max(14,o.cw/o.sw*100);return {w,l:Math.min(1,Math.max(0,o.sl/max))*(100-w)}}
+  if(o.n<=4)return {w:100,l:0}
+  const w=4/o.n*100;return {w,l:Math.min(1,o.cs/(o.n-4))*(100-w)}
+}
+// THUMB-END
+function chipThumb(){const e=chipWinEl.value;thumb.value=thumbOf({mobile:matchMedia('(max-width:600px)').matches,n:cats.value.length,cs:cs.value,sl:e?e.scrollLeft:0,sw:e?e.scrollWidth:0,cw:e?e.clientWidth:0})}
+watch(()=>[cs.value,cats.value.length],()=>nextTick(chipThumb))
 const PER=8,page=ref(1)   // 8 sản phẩm mỗi trang, áp dụng cho "Tất cả" và từng danh mục
 const pageCount=computed(()=>Math.max(1,Math.ceil(shown.value.length/PER)))
 const paged=computed(()=>{const c=Math.min(page.value,pageCount.value);return shown.value.slice((c-1)*PER,c*PER)})
@@ -356,6 +370,7 @@ async function submitQuote(e){
   busy.value=false
 }
 onMounted(async()=>{
+  window.addEventListener('resize',chipThumb);nextTick(chipThumb)
   try{cart.value=JSON.parse(localStorage.getItem('cc-cart')||'[]')}catch{}
   let had=false
   try{const c=JSON.parse(localStorage.getItem('cc-products')||'null');if(c&&Array.isArray(c.d)&&c.d.length&&Date.now()-c.t<864e5){products.value=c.d;loading.value=false;had=true}}catch{}   // lần sau vào trang hiện ngay
@@ -375,7 +390,11 @@ onMounted(async()=>{
 .pgn button.on{background:var(--ink);color:var(--stage);border-color:var(--ink)}
 .pgn button:disabled{opacity:.4;cursor:default}
 .chipbar{display:flex;align-items:center;gap:8px;min-width:0;max-width:100%}
-.chipwin{flex:0 1 470px;width:min(100%,470px);min-width:0;overflow:hidden;padding:3px 0;margin:-3px 0}
+.chipcol{flex:0 1 470px;width:min(100%,470px);min-width:0;display:grid;gap:7px}
+.chipwin{width:100%;min-width:0;overflow:hidden;padding:3px 0;margin:-3px 0}
+.ctrack{position:relative;height:4px;border-radius:99px;background:var(--bd)}
+.cthumb{position:absolute;top:0;bottom:0;border-radius:99px;background:var(--lc);transition:left .45s cubic-bezier(.4,0,.2,1),width .3s}
+.chipbar{align-items:flex-start}
 .chipbar .chips{display:flex;flex-wrap:nowrap;gap:8px;width:100%;transition:transform .45s cubic-bezier(.4,0,.2,1);transform:translateX(calc(var(--i,0) * -1 * (25% + 2px)))}
 .chipbar .chips button{flex:0 0 calc(25% - 6px);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:6px;padding-right:6px}
 .cnav{flex:none;width:38px;height:38px;border-radius:50%;border:1px solid var(--bd);background:transparent;color:var(--ink);font:600 20px/1 Outfit,system-ui,sans-serif;cursor:pointer;display:grid;place-items:center;padding:0 0 3px}
@@ -413,7 +432,9 @@ onMounted(async()=>{
 @media (max-width:600px){
  .chipbar{width:100%}
  .chipbar .cnav{display:none}
- .chipwin{flex:1 1 100%;width:100%;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+ .chipcol{flex:1 1 100%;width:100%}
+ .cthumb{transition:none}
+ .chipwin{width:100%;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
  .chipwin::-webkit-scrollbar{display:none}
  .chipbar .chips{width:max-content;transform:none!important;transition:none}
  .chipbar .chips button{flex:0 0 auto;overflow:visible;text-overflow:clip;padding-left:14px;padding-right:14px}

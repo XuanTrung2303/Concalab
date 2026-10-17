@@ -1,5 +1,7 @@
 import {db,body,limited} from './_lib.js'
 const PF=['slug','name','category','description','price_vnd','size_mm','material','badge','content_html','image_url','is_active','in_stock','sort_order']
+const PRICE_ST=['accepted','paid','shipping','done']   // từ trạng thái "khách đồng ý" trở đi là đơn hàng thật, cần có giá
+const money=v=>{const n=Number(v);return Number.isInteger(n)&&n>0&&n<=2e9?n:null}
 const OS=['paid','shipping','done','cancelled'],QS=['new','quoted','accepted','paid','shipping','done','rejected']
 const AC=new Map()   // cache phiên đăng nhập 60 giây
 const rng=b=>{const p=Math.max(1,parseInt(b.page)||1);return [(p-1)*12,p*12-1]}   // 12 dòng mỗi trang
@@ -119,10 +121,20 @@ export default async function handler(req,res){
         return res.json({rows:r.data||[],total:r.count||0})}
       case 'quote.status':{
         if(!QS.includes(b.status))return E(res,'Trạng thái sai')
+        const price=b.price_vnd==null||b.price_vnd===''?null:money(b.price_vnd)
+        if(b.price_vnd!=null&&b.price_vnd!==''&&!price)return E(res,'Giá đơn hàng phải là số nguyên lớn hơn 0')
+        const {data:cur}=await s.from('quote_requests').select('status,price_vnd').eq('id',b.id).single()
+        if(!cur)return E(res,'Không tìm thấy')
+        if(['done','rejected'].includes(cur.status))return E(res,'Đơn đã khóa, không thể đổi trạng thái')   // đã giao thành công / từ chối
+        if(PRICE_ST.includes(b.status)&&!(price||cur.price_vnd))return E(res,'Vui lòng nhập giá đơn hàng')
+        await s.from('quote_requests').update({status:b.status,...(price?{price_vnd:price}:{})}).eq('id',b.id);return res.json({})}
+      case 'quote.price':{   // sửa giá khi đơn chưa bị khóa
+        const price=money(b.price_vnd);if(!price)return E(res,'Giá đơn hàng phải là số nguyên lớn hơn 0')
         const {data:cur}=await s.from('quote_requests').select('status').eq('id',b.id).single()
         if(!cur)return E(res,'Không tìm thấy')
-        if(['done','rejected'].includes(cur.status))return E(res,'Đơn đã khóa, không thể đổi trạng thái')   // đã giao thành công / đã hủy
-        await s.from('quote_requests').update({status:b.status}).eq('id',b.id);return res.json({})}
+        if(['done','rejected'].includes(cur.status))return E(res,'Đơn đã khóa, không sửa được giá')
+        if(!PRICE_ST.includes(cur.status))return E(res,'Chỉ nhập giá khi khách đã đồng ý')
+        await s.from('quote_requests').update({price_vnd:price}).eq('id',b.id);return res.json({})}
       case 'quote.file':{
         const {data:qr}=await s.from('quote_requests').select('file_path').eq('id',b.id).single()
         if(!qr||!qr.file_path)return E(res,'Không có file')

@@ -32,7 +32,7 @@
     <div class="kpi" v-for="k in kpis" :key="k.t" :style="{'--kc':k.c}"><span class="kt">{{k.t}}</span><b class="kn">{{k.n}}</b><span class="ks">{{k.s}}</span></div>
    </div>
    <div class="card statbox">
-    <div class="sthead"><div><b>Thống kê đơn hàng và doanh thu</b><small>Đơn hàng, đang giao và đã giao gồm cả đơn có sẵn và đơn theo yêu cầu (đã được khách đồng ý). Doanh thu chỉ tính đơn có sẵn đã nhận tiền, không gồm phí ship. Đơn xếp theo ngày tạo.</small></div>
+    <div class="sthead"><div><b>Thống kê đơn hàng và doanh thu</b><small>Đơn hàng, đang giao và đã giao gồm cả đơn có sẵn và đơn theo yêu cầu (đã được khách đồng ý). Doanh thu gồm tiền hàng của đơn có sẵn đã nhận tiền (không gồm phí ship) và giá đơn theo yêu cầu đã được khách đồng ý. Đơn xếp theo ngày tạo.</small></div>
      <div class="seg" role="tablist"><button v-for="p in [['month','Tháng'],['quarter','Quý'],['year','Năm']]" :key="p[0]" :class="{on:period==p[0]}" @click="period=p[0]">{{p[1]}}</button></div></div>
     <div class="charts">
      <div class="chbox" v-for="c in charts" :key="c.title">
@@ -110,7 +110,7 @@
    <div class="card" v-for="q in quotes" :key="q.id">
     <div class="hd"><b>{{q.customer_name}} · {{q.phone}}</b><select class="st" :style="{'--sc':SC[q.status]}" :value="q.status" :disabled="isLocked('quote',q)" @change="setS('quote.status',q,$event.target.value,$event)"><option v-for="(l,k) in QS" :key="k" :value="k" :style="{color:SC[k]}">{{l}}</option></select></div>
     <small v-if="isLocked('quote',q)">🔒 Đơn đã khóa, không thể đổi trạng thái</small>
-    <small>{{dt(q.created_at)}} · {{q.material}} × {{q.quantity}} · {{q.has_file?'Có file':'Chưa có file'}}</small><span>{{q.description}}</span>
+    <small>{{dt(q.created_at)}} · {{q.material}} × {{q.quantity}} · {{q.has_file?'Có file':'Chưa có file'}}</small><div class="pricerow" v-if="q.price_vnd"><b>Giá đơn hàng: {{vnd(q.price_vnd)}}</b><button v-if="!isLocked('quote',q)" type="button" class="btn s o" @click="askPrice(q,null)">Sửa giá</button></div><span>{{q.description}}</span>
     <div v-if="q.file_path"><button class="btn s o" @click="dlFile(q)">📎 Tải file đính kèm</button></div>
    </div>
    </div>
@@ -202,6 +202,14 @@
    <div class="kv"><span>Tổng cộng</span><b>{{vnd(vo.total_vnd)}}</b></div>
   </div>
  </dialog>
+ <dialog ref="qp" style="width:min(440px,calc(100% - 24px))" @click.self="qp.close()"><button class="x" @click="qp.close()" aria-label="Đóng"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  <form class="pform" @submit.prevent="savePrice">
+   <h3>{{qpStatus?'Nhập giá đơn hàng':'Sửa giá đơn hàng'}}</h3>
+   <p class="sub" style="margin:0;text-align:left">{{qpItem&&qpItem.customer_name}} · Giá là tiền hàng (không gồm phí ship) và được cộng vào doanh thu.</p>
+   <label>Giá đơn hàng (VNĐ)<input v-model="qpPrice" inputmode="numeric" placeholder="VD: 1500000" required autocomplete="off"></label>
+   <b v-if="qpNum" class="qpshow">{{vnd(qpNum)}}</b>
+   <button class="btn c" :disabled="busy">{{qpStatus?'Lưu giá và đổi trạng thái':'Lưu giá'}}</button>
+  </form></dialog>
  <div id="toast" :class="{on:tOn}" role="status">{{tMsg}}</div>
 </div>
 </template>
@@ -291,7 +299,7 @@ function syncContent(){   // lấy nội dung từ trình soạn thảo trước
 function periodsOf(kind,months,nowMs){   // gộp số liệu tháng thành tháng / quý / năm (giờ Việt Nam)
   const now=new Date(nowMs+7*36e5),cy=now.getUTCFullYear(),cm=now.getUTCMonth()+1
   const src={};for(const r of months||[])src[r.ym]=r
-  const sum=keys=>{const a={orders:0,shipping:0,done:0,cancelled:0,pending:0,revenue:0,custom_orders:0,custom_shipping:0,custom_done:0};for(const k of keys){const r=src[k];if(r)for(const f in a)a[f]+=Number(r[f]||0)}return a}
+  const sum=keys=>{const a={orders:0,shipping:0,done:0,cancelled:0,pending:0,revenue:0,custom_orders:0,custom_shipping:0,custom_done:0,custom_revenue:0};for(const k of keys){const r=src[k];if(r)for(const f in a)a[f]+=Number(r[f]||0)}return a}
   const mk=(y,m)=>y+'-'+String(m).padStart(2,'0'),out=[]
   if(kind==='month')for(let i=11;i>=0;i--){let y=cy,m=cm-i;while(m<1){m+=12;y--}out.push({label:'Tháng '+m+'/'+y,tick:m+'/'+String(y).slice(2),...sum([mk(y,m)])})}
   if(kind==='quarter'){let q=Math.ceil(cm/3),y=cy;const list=[];for(let i=0;i<8;i++){list.unshift({y,q});q--;if(q<1){q=4;y--}}
@@ -322,7 +330,7 @@ async function loadStats(){
 }
 const rows=computed(()=>periodsOf(period.value,ov.value&&ov.value.months,Date.now()))
 const rowsDesc=computed(()=>rows.value.slice().reverse())
-const tot=computed(()=>{const a={orders:0,shipping:0,done:0,revenue:0,custom_orders:0,custom_shipping:0,custom_done:0};for(const r of (ov.value&&ov.value.months)||[])for(const f in a)a[f]+=Number(r[f]||0);return a})
+const tot=computed(()=>{const a={orders:0,shipping:0,done:0,revenue:0,custom_orders:0,custom_shipping:0,custom_done:0,custom_revenue:0};for(const r of (ov.value&&ov.value.months)||[])for(const f in a)a[f]+=Number(r[f]||0);return a})
 const mon=computed(()=>periodsOf('month',ov.value&&ov.value.months,Date.now()).slice(-1)[0]||{orders:0,done:0,revenue:0})
 const charts=computed(()=>[
   {title:'Doanh thu',color:'#a855f7',g:chartGeom(rows.value.map(r=>r.revenue),rows.value.map(r=>r.tick),short,false),full:vnd},
@@ -333,7 +341,7 @@ const kpis=computed(()=>{const t=tot.value,m=mon.value
     {t:'Tổng đơn hàng',n:t.orders.toLocaleString('vi-VN'),s:'Có sẵn: '+(t.orders-t.custom_orders)+' · Theo yêu cầu: '+t.custom_orders+' · Tháng này: '+m.orders,c:'#3b82f6'},
     {t:'Đang giao hàng',n:t.shipping.toLocaleString('vi-VN'),s:'Có sẵn: '+(t.shipping-t.custom_shipping)+' · Theo yêu cầu: '+t.custom_shipping,c:'#f59e0b'},
     {t:'Đã giao thành công',n:t.done.toLocaleString('vi-VN'),s:'Có sẵn: '+(t.done-t.custom_done)+' · Theo yêu cầu: '+t.custom_done+' · Tháng này: '+m.done,c:'#22c55e'},
-    {t:'Doanh thu',n:vnd(t.revenue),s:'Tiền hàng đơn có sẵn, chưa gồm phí ship · Tháng này: '+vnd(m.revenue),c:'#a855f7'}
+    {t:'Doanh thu',n:vnd(t.revenue),s:'Có sẵn: '+vnd(t.revenue-t.custom_revenue)+' · Theo yêu cầu: '+vnd(t.custom_revenue)+' · Tháng này: '+vnd(m.revenue),c:'#a855f7'}
   ]})
 const tabs=[['overview','Tổng quan'],['products','Sản phẩm'],['categories','Danh mục'],['orders','Đơn hàng'],['quotes','Đơn theo yêu cầu']]
 const vnd=n=>Number(n).toLocaleString('vi-VN')+'đ',dt=d=>new Date(d).toLocaleString('vi-VN')
@@ -382,8 +390,24 @@ const isLocked=(k,o)=>LOCK[k].includes(o.status)
 async function setS(a,o,status,ev){
   const ord=a=='order.status'
   if(LOCK[ord?'order':'quote'].includes(status)&&!confirm(`Chuyển sang "${(ord?ORD:QS)[status]}"? Sau đó đơn sẽ bị khóa và không thể đổi trạng thái nữa.`)){ev.target.value=o.status;return}
+  if(!ord&&PRICE_ST.includes(status)&&!o.price_vnd){ev.target.value=o.status;askPrice(o,status);return}   // chưa có giá thì hỏi giá trước
   busy.value=true
   try{await api(a,{id:o.id,status});o.status=status;toast('Đã cập nhật trạng thái')}catch(e){ev.target.value=o.status;toast(e.message)}
+  busy.value=false
+}
+// ---- nhập giá cho đơn theo yêu cầu (cộng vào doanh thu) ----
+const PRICE_ST=['accepted','paid','shipping','done']
+const qp=ref(null),qpItem=ref(null),qpStatus=ref(null),qpPrice=ref('')
+const qpNum=computed(()=>Number(String(qpPrice.value).replace(/\D/g,''))||0)
+function askPrice(o,status){qpItem.value=o;qpStatus.value=status;qpPrice.value=o.price_vnd?String(o.price_vnd):'';qp.value.showModal()}
+async function savePrice(){
+  const o=qpItem.value,st=qpStatus.value,v=qpNum.value
+  if(!(v>0)){toast('Vui lòng nhập giá đơn hàng lớn hơn 0');return}
+  busy.value=true
+  try{
+    if(st){await api('quote.status',{id:o.id,status:st,price_vnd:v});o.status=st}else await api('quote.price',{id:o.id,price_vnd:v})
+    o.price_vnd=v;qp.value.close();toast(st?'Đã lưu giá và cập nhật trạng thái':'Đã sửa giá đơn hàng')
+  }catch(e){toast(e.message)}
   busy.value=false
 }
 const dlFile=q=>run(async()=>{const j=await api('quote.file',{id:q.id});location.href=j.url})
@@ -537,4 +561,7 @@ select.st option{background:var(--stage);font-weight:600}
 .stab tr.cur td{font-weight:700;background:var(--row)}
 @media(max-width:1000px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.charts{grid-template-columns:1fr}}
 @media(max-width:520px){.kpis{grid-template-columns:1fr}}
+.pricerow{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 12px;border-radius:12px;background:var(--row)}
+.pricerow b{color:#a855f7}
+.qpshow{font-size:22px;color:#a855f7}
 </style>
