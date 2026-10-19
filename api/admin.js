@@ -1,6 +1,7 @@
 import {db,body,limited} from './_lib.js'
 const PF=['slug','name','category','description','price_vnd','size_mm','material','badge','content_html','image_url','is_active','in_stock','sort_order']
-const PRICE_ST=['accepted','paid','shipping','done']   // từ trạng thái "khách đồng ý" trở đi là đơn hàng thật, cần có giá
+const PRICE_ST=['paid','shipping','done']   // từ "Đã thanh toán" (khách đã chuyển khoản) trở đi thì phải có giá để tính doanh thu
+const PRICE_EDIT=['accepted','paid','shipping','done']   // các trạng thái được phép sửa giá (đơn Khách đồng ý có giá cũ vẫn sửa được)
 const money=v=>{const n=Number(v);return Number.isInteger(n)&&n>0&&n<=2e9?n:null}
 const OS=['paid','shipping','done','cancelled'],QS=['new','quoted','accepted','paid','shipping','done','rejected']
 const AC=new Map()   // cache phiên đăng nhập 60 giây
@@ -133,7 +134,7 @@ export default async function handler(req,res){
         const {data:cur}=await s.from('quote_requests').select('status').eq('id',b.id).single()
         if(!cur)return E(res,'Không tìm thấy')
         if(['done','rejected'].includes(cur.status))return E(res,'Đơn đã khóa, không sửa được giá')
-        if(!PRICE_ST.includes(cur.status))return E(res,'Chỉ nhập giá khi khách đã đồng ý')
+        if(!PRICE_EDIT.includes(cur.status))return E(res,'Chỉ sửa giá khi khách đã đồng ý hoặc đã thanh toán')
         await s.from('quote_requests').update({price_vnd:price}).eq('id',b.id);return res.json({})}
       case 'quote.file':{
         const {data:qr}=await s.from('quote_requests').select('file_path').eq('id',b.id).single()

@@ -32,7 +32,7 @@
     <div class="kpi" v-for="k in kpis" :key="k.t" :style="{'--kc':k.c}"><span class="kt">{{k.t}}</span><b class="kn">{{k.n}}</b><span class="ks">{{k.s}}</span></div>
    </div>
    <div class="card statbox">
-    <div class="sthead"><div><b>Thống kê đơn hàng và doanh thu</b><small>Đơn hàng, đang giao và đã giao gồm cả đơn có sẵn và đơn theo yêu cầu (đã được khách đồng ý). Doanh thu gồm tiền hàng của đơn có sẵn đã nhận tiền (không gồm phí ship) và giá đơn theo yêu cầu đã được khách đồng ý. Đơn xếp theo ngày tạo.</small></div>
+    <div class="sthead"><div><b>Thống kê đơn hàng và doanh thu</b><small>Đơn hàng, đang giao và đã giao gồm cả đơn có sẵn và đơn theo yêu cầu (đã được khách đồng ý). Doanh thu gồm tiền hàng của đơn có sẵn đã nhận tiền (không gồm phí ship) và giá đơn theo yêu cầu đã thanh toán. Đơn xếp theo ngày tạo.</small></div>
      <div class="seg" role="tablist"><button v-for="p in [['month','Tháng'],['quarter','Quý'],['year','Năm']]" :key="p[0]" :class="{on:period==p[0]}" @click="period=p[0]">{{p[1]}}</button></div></div>
     <div class="charts">
      <div class="chbox" v-for="c in charts" :key="c.title">
@@ -110,7 +110,7 @@
    <div class="card" v-for="q in quotes" :key="q.id">
     <div class="hd"><b>{{q.customer_name}} · {{q.phone}}</b><select class="st" :style="{'--sc':SC[q.status]}" :value="q.status" :disabled="isLocked('quote',q)" @change="setS('quote.status',q,$event.target.value,$event)"><option v-for="(l,k) in QS" :key="k" :value="k" :style="{color:SC[k]}">{{l}}</option></select></div>
     <small v-if="isLocked('quote',q)">🔒 Đơn đã khóa, không thể đổi trạng thái</small>
-    <small>{{dt(q.created_at)}} · {{q.material}} × {{q.quantity}} · {{q.has_file?'Có file':'Chưa có file'}}</small><div class="pricerow" v-if="q.price_vnd"><b>Giá đơn hàng: {{vnd(q.price_vnd)}}</b><button v-if="!isLocked('quote',q)" type="button" class="btn s o" @click="askPrice(q,null)">Sửa giá</button></div><span>{{q.description}}</span>
+    <small>{{dt(q.created_at)}} · {{q.material}} × {{q.quantity}} · {{q.has_file?'Có file':'Chưa có file'}}</small><div class="pricerow" v-if="q.price_vnd"><b>Giá đơn hàng: {{vnd(q.price_vnd)}}</b><button v-if="PRICE_ST.includes(q.status)&&!isLocked('quote',q)" type="button" class="btn s o" @click="askPrice(q,null)">Sửa giá</button></div><span>{{q.description}}</span>
     <div v-if="q.file_path"><button class="btn s o" @click="dlFile(q)">📎 Tải file đính kèm</button></div>
    </div>
    </div>
@@ -205,7 +205,7 @@
  <dialog ref="qp" style="width:min(440px,calc(100% - 24px))" @click.self="qp.close()"><button class="x" @click="qp.close()" aria-label="Đóng"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   <form class="pform" @submit.prevent="savePrice">
    <h3>{{qpStatus?'Nhập giá đơn hàng':'Sửa giá đơn hàng'}}</h3>
-   <p class="sub" style="margin:0;text-align:left">{{qpItem&&qpItem.customer_name}} · Giá là tiền hàng (không gồm phí ship) và được cộng vào doanh thu.</p>
+   <p class="sub" style="margin:0;text-align:left">{{qpItem&&qpItem.customer_name}} · Khách đã chuyển khoản. Giá là tiền hàng (không gồm phí ship) và được cộng vào doanh thu.</p>
    <label>Giá đơn hàng (VNĐ)<input v-model="qpPrice" inputmode="numeric" placeholder="VD: 1500000" required autocomplete="off"></label>
    <b v-if="qpNum" class="qpshow">{{vnd(qpNum)}}</b>
    <button class="btn c" :disabled="busy">{{qpStatus?'Lưu giá và đổi trạng thái':'Lưu giá'}}</button>
@@ -396,7 +396,7 @@ async function setS(a,o,status,ev){
   busy.value=false
 }
 // ---- nhập giá cho đơn theo yêu cầu (cộng vào doanh thu) ----
-const PRICE_ST=['accepted','paid','shipping','done']
+const PRICE_ST=['paid','shipping','done']   // đổi sang các trạng thái này thì hỏi giá (cộng vào doanh thu)
 const qp=ref(null),qpItem=ref(null),qpStatus=ref(null),qpPrice=ref('')
 const qpNum=computed(()=>Number(String(qpPrice.value).replace(/\D/g,''))||0)
 function askPrice(o,status){qpItem.value=o;qpStatus.value=status;qpPrice.value=o.price_vnd?String(o.price_vnd):'';qp.value.showModal()}
