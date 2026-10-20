@@ -31,7 +31,7 @@ export default async function handler(req,res){
     switch(a){
       case 'products':{
         const [f,t]=rng(b)
-        let qy=s.from('products').select('*,product_colors(name,hex,image_url,position)',{count:'exact'}).order('sort_order')
+        let qy=s.from('products').select('*,product_colors(name,hex,image_url,position)',{count:'exact'}).order('created_at',{ascending:false}).order('sort_order')
         if(kw)qy=qy.or(`name.ilike.*${kw}*,category.ilike.*${kw}*,slug.ilike.*${kw}*`)
         r=await qy.range(f,t)
         return res.json({rows:r.data||[],total:r.count||0})}
@@ -57,7 +57,7 @@ export default async function handler(req,res){
         const {error}=await s.storage.from('products').upload(path,buf,{contentType:'image/'+m[1]});if(error)return E(res,error.message)
         return res.json({url:s.storage.from('products').getPublicUrl(path).data.publicUrl})}
       case 'categories':{
-        const [c,pr]=await Promise.all([s.from('categories').select('*').order('sort_order').order('name'),s.from('products').select('category')])
+        const [c,pr]=await Promise.all([s.from('categories').select('*').order('created_at',{ascending:false}).order('sort_order').order('name'),s.from('products').select('category')])
         const n={};(pr.data||[]).forEach(x=>{n[x.category]=(n[x.category]||0)+1})
         return res.json((c.data||[]).map(x=>({...x,count:n[x.name]||0})))}
       case 'category.save':{
@@ -81,8 +81,8 @@ export default async function handler(req,res){
       case 'init':{   // gộp me + danh mục + trang sản phẩm đầu tiên vào 1 request
         const [f,t]=rng(b)
         const [pr,ct,pc]=await Promise.all([
-          s.from('products').select('*,product_colors(name,hex,image_url,position)',{count:'exact'}).order('sort_order').range(f,t),
-          s.from('categories').select('*').order('sort_order').order('name'),
+          s.from('products').select('*,product_colors(name,hex,image_url,position)',{count:'exact'}).order('created_at',{ascending:false}).order('sort_order').range(f,t),
+          s.from('categories').select('*').order('created_at',{ascending:false}).order('sort_order').order('name'),
           s.from('products').select('category')])
         const n={};(pc.data||[]).forEach(x=>{n[x.category]=(n[x.category]||0)+1})
         return res.json({

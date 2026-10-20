@@ -206,7 +206,7 @@ const vnd=n=>n.toLocaleString('vi-VN')+'đ'
 const products=ref([]),loading=ref(true),loadErr=ref(''),cat=ref('Tất cả'),cart=ref([]),cur=ref(null),done=ref(null)
 const pay=ref(null),fm=reactive({n:'',p:'',g:'',region:'danang',province:'',ward:'',street:''}),busy=ref(false),orderErr=ref(''),quoteMsg=ref(''),pd=ref(null),cd=ref(null),toastMsg=ref(''),toastOn=ref(false)
 let tt,lastText=''
-const cats=computed(()=>['Tất cả',...new Set(products.value.map(p=>p.category))])
+const cats=computed(()=>['Tất cả',...new Set([...products.value].sort((a,b)=>(a.sort_order??0)-(b.sort_order??0)).map(p=>p.category))])   // sản phẩm hiện mới nhất trước, còn nút danh mục giữ thứ tự ổn định
 const shown=computed(()=>products.value.filter(p=>cat.value=='Tất cả'||p.category==cat.value))
 const cs=ref(0)   // vị trí danh mục đầu tiên đang hiện; mỗi lần chỉ hiện 4 danh mục
 const chipMove=d=>{cs.value=Math.max(0,Math.min(cs.value+d*4,cats.value.length-4))}

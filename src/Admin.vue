@@ -159,7 +159,7 @@
    <div class="lbl">Mô tả chi tiết (chèn ảnh, đổi cỡ chữ, kiểu chữ, màu chữ… khách bấm "Xem mô tả sản phẩm" mới thấy)</div>
    <div class="qwrap"><div ref="qEl"></div></div>
    <div class="f2"><label>Kích thước (mm), ví dụ 110 × 110<input v-model="f.size_mm"></label><label>Vật liệu<input v-model="f.material"></label></div>
-   <div class="f2"><label>Nhãn (Bán chạy, Còn hàng…)<input v-model="f.badge"></label><label>Thứ tự hiển thị<input v-model.number="f.sort_order" type="number"></label></div>
+   <label>Nhãn (Bán chạy, Còn hàng…)<input v-model="f.badge"></label>
    <div class="lbl">Màu mặc định (dùng ảnh chính ở trên)</div>
    <div class="crow"><input v-model="f.colors[0].name" placeholder="Tên màu mặc định" required><input type="color" v-model="f.colors[0].hex"></div>
    <div class="lbl">Màu sắc phụ (ảnh không bắt buộc, không có ảnh thì dùng ảnh chính)</div>
@@ -383,7 +383,7 @@ const catsShown=computed(()=>{const k=nm(search.categories.trim());return k?cats
 function goPg(k,n){n=Math.max(1,Math.min(n,pages(k)));if(n===pg[k])return;pg[k]=n;load(k,n);window.scrollTo({top:0,behavior:'smooth'})}
 async function go(t){tab.value=t;if(!tok.value)return;if(L[t])load(t,pg[t]);if(t=='categories')loadCats();if(t=='overview')loadStats()}
 function edit(p){f.value=p?{...p,colors:[...p.product_colors].sort((a,b)=>a.position-b.position).map(c=>({name:c.name,hex:c.hex,image_url:c.image_url||''}))}:{name:'',category:'',description:'',price_vnd:0,size_mm:'',material:'PLA',badge:'',image_url:'',is_active:true,in_stock:true,sort_order:total.products+1,colors:[{name:'Xanh cyan',hex:'#00bcd4',image_url:''}]};if(!f.value.colors.length)f.value.colors.push({name:'',hex:'#00bcd4',image_url:''});pf.value.showModal();mountEditor(f.value.content_html)}
-const saveP=()=>run(async()=>{syncContent();await api('product.save',{product:f.value});pf.value.close();toast('Đã lưu sản phẩm');cache.clear();go('products')})
+const saveP=()=>run(async()=>{syncContent();const isNew=!f.value.id;await api('product.save',{product:f.value});pf.value.close();toast('Đã lưu sản phẩm');cache.clear();if(isNew){pg.products=1;search.products=''}go('products')})   // sản phẩm mới nằm ở trang 1
 const doDel=()=>run(async()=>{await api('product.delete',{id:del.value.id});dd.value.close();toast('Đã xóa');cache.clear();go('products')})
 const LOCK={order:['done','cancelled'],quote:['done','rejected']}   // trạng thái cuối: khóa đơn
 const isLocked=(k,o)=>LOCK[k].includes(o.status)
