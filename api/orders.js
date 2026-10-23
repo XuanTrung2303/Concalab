@@ -42,12 +42,13 @@ export default async function handler(req,res){
   if(!items.length||items.length>20)return bad(res,'Đơn hàng cần từ 1 đến 20 dòng')
   if(items.some(i=>!Number.isInteger(i.quantity)||i.quantity<1||i.quantity>99))return bad(res,'Số lượng phải từ 1 đến 99')
   const ids=[...new Set(items.map(i=>i.product_id))]
-  const {data:ps}=await s.from('products').select('id,name,price_vnd,in_stock,product_colors(name)').in('id',ids).eq('is_active',true)
+  const {data:ps}=await s.from('products').select('id,name,price_vnd,in_stock,price_contact,product_colors(name)').in('id',ids).eq('is_active',true)
   const map=new Map((ps||[]).map(p=>[p.id,p]))
   const lines=[]
   for(const i of items){            // giá lấy từ DB, bỏ qua mọi giá do trình duyệt gửi
     const p=map.get(i.product_id)
     if(!p||!p.product_colors.some(c=>c.name===i.color))return bad(res,'Sản phẩm hoặc màu không còn tồn tại')
+    if(p.price_contact)return bad(res,`Sản phẩm "${p.name}" có giá liên hệ, vui lòng liên hệ fanpage hoặc Zalo của shop để được báo giá`)
     if(p.in_stock===false)return bad(res,`Sản phẩm "${p.name}" đã hết hàng, vui lòng chọn sản phẩm khác`)
     lines.push({product_id:p.id,product_name:p.name,color_name:i.color,unit_price_vnd:p.price_vnd,quantity:i.quantity})
   }

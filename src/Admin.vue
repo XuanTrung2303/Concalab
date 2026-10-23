@@ -57,7 +57,7 @@
    <div class="grid">
     <div class="card pcard" v-for="p in products" :key="p.id">
      <img v-if="p.image_url" :src="p.image_url" class="pimg2" alt="" loading="lazy" decoding="async"><div v-else class="pimg2 ph">3D</div>
-     <div class="gr"><b>{{p.name}}</b><small>{{p.category}} · {{vnd(p.price_vnd)}} · {{p.is_active?'Đang bán':'Đã ẩn'}}{{p.in_stock===false?' · Hết hàng':''}}</small></div>
+     <div class="gr"><b>{{p.name}}</b><small>{{p.category}} · {{p.price_contact?'Giá liên hệ':vnd(p.price_vnd)}} · {{p.is_active?'Đang bán':'Đã ẩn'}}{{p.in_stock===false?' · Hết hàng':''}}</small></div>
      <div class="acts"><button class="btn s b-edit" @click="edit(p)">Sửa</button><button class="btn s b-del" @click="del=p;dd.showModal()">Xóa</button></div>
     </div>
    </div>
@@ -154,7 +154,7 @@
    <h3>{{f.id?'Sửa sản phẩm':'Thêm sản phẩm'}}</h3>
    <label>Ảnh chính (ảnh của màu mặc định, tỉ lệ 4:3)<div class="logo"><img v-if="f.image_url" :src="f.image_url" class="th big" alt=""><input type="file" accept="image/*" @change="pick($event,u=>f.image_url=u,900)"></div></label>
    <label>Tên<input v-model="f.name" required></label>
-   <div class="f2"><label>Danh mục<select v-model="f.category" required><option value="" disabled>Chọn danh mục…</option><option v-for="c in catOpts" :key="c.id" :value="c.name">{{c.name}}{{c.is_visible?'':' (đang ẩn)'}}</option></select></label><label>Giá (VNĐ)<input v-model.number="f.price_vnd" type="number" min="0" step="1000" required></label></div>
+   <div class="f2"><label>Danh mục<select v-model="f.category" required><option value="" disabled>Chọn danh mục…</option><option v-for="c in catOpts" :key="c.id" :value="c.name">{{c.name}}{{c.is_visible?'':' (đang ẩn)'}}</option></select></label><div class="pcell"><label>Giá (VNĐ)<input v-model.number="f.price_vnd" type="number" min="0" step="1000" :disabled="f.price_contact" :required="!f.price_contact" :placeholder="f.price_contact?'Giá liên hệ':''"></label><label class="chk"><input type="checkbox" v-model="f.price_contact"> Giá liên hệ (khách liên hệ fanpage hoặc Zalo)</label></div></div>
    <label>Mô tả ngắn (hiện trên thẻ sản phẩm)<textarea v-model="f.description" rows="2"></textarea></label>
    <div class="lbl">Mô tả chi tiết (chèn ảnh, đổi cỡ chữ, kiểu chữ, màu chữ… khách bấm "Xem mô tả sản phẩm" mới thấy)</div>
    <div class="qwrap"><div ref="qEl"></div></div>
@@ -382,8 +382,8 @@ const nm=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/�
 const catsShown=computed(()=>{const k=nm(search.categories.trim());return k?cats.value.filter(c=>nm(c.name).includes(k)):cats.value})
 function goPg(k,n){n=Math.max(1,Math.min(n,pages(k)));if(n===pg[k])return;pg[k]=n;load(k,n);window.scrollTo({top:0,behavior:'smooth'})}
 async function go(t){tab.value=t;if(!tok.value)return;if(L[t])load(t,pg[t]);if(t=='categories')loadCats();if(t=='overview')loadStats()}
-function edit(p){f.value=p?{...p,colors:[...p.product_colors].sort((a,b)=>a.position-b.position).map(c=>({name:c.name,hex:c.hex,image_url:c.image_url||''}))}:{name:'',category:'',description:'',price_vnd:0,size_mm:'',material:'PLA',badge:'',image_url:'',is_active:true,in_stock:true,sort_order:total.products+1,colors:[{name:'Xanh cyan',hex:'#00bcd4',image_url:''}]};if(!f.value.colors.length)f.value.colors.push({name:'',hex:'#00bcd4',image_url:''});pf.value.showModal();mountEditor(f.value.content_html)}
-const saveP=()=>run(async()=>{syncContent();const isNew=!f.value.id;await api('product.save',{product:f.value});pf.value.close();toast('Đã lưu sản phẩm');cache.clear();if(isNew){pg.products=1;search.products=''}go('products')})   // sản phẩm mới nằm ở trang 1
+function edit(p){f.value=p?{...p,colors:[...p.product_colors].sort((a,b)=>a.position-b.position).map(c=>({name:c.name,hex:c.hex,image_url:c.image_url||''}))}:{name:'',category:'',description:'',price_vnd:0,size_mm:'',material:'PLA',badge:'',image_url:'',is_active:true,in_stock:true,price_contact:false,sort_order:total.products+1,colors:[{name:'Xanh cyan',hex:'#00bcd4',image_url:''}]};if(!f.value.colors.length)f.value.colors.push({name:'',hex:'#00bcd4',image_url:''});pf.value.showModal();mountEditor(f.value.content_html)}
+const saveP=()=>run(async()=>{syncContent();if(f.value.price_contact)f.value.price_vnd=0;const isNew=!f.value.id;await api('product.save',{product:f.value});pf.value.close();toast('Đã lưu sản phẩm');cache.clear();if(isNew){pg.products=1;search.products=''}go('products')})   // sản phẩm mới nằm ở trang 1
 const doDel=()=>run(async()=>{await api('product.delete',{id:del.value.id});dd.value.close();toast('Đã xóa');cache.clear();go('products')})
 const LOCK={order:['done','cancelled'],quote:['done','rejected']}   // trạng thái cuối: khóa đơn
 const isLocked=(k,o)=>LOCK[k].includes(o.status)
@@ -509,8 +509,9 @@ select.st option{background:var(--stage);font-weight:600}
 .cl2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .kv b{text-align:right;overflow-wrap:anywhere}
 .qwrap .ql-toolbar.ql-snow{background:var(--row);border:1px solid var(--bd);border-radius:14px 14px 0 0}
-.qwrap .ql-container.ql-snow{border:1px solid var(--bd);border-top:0;border-radius:0 0 14px 14px;font:inherit;color:var(--ink)}
-.qwrap .ql-editor{min-height:200px;max-height:380px;overflow:auto;font-size:15px;line-height:1.6}
+.qwrap{display:block;min-width:0}
+.qwrap .ql-container.ql-snow{height:auto;border:1px solid var(--bd);border-top:0;border-radius:0 0 14px 14px;font:inherit;color:var(--ink)}   /* height:auto: không để khung soạn thảo tràn xuống đè các ô bên dưới */
+.qwrap .ql-editor{height:auto;min-height:200px;max-height:380px;overflow:auto;font-size:15px;line-height:1.6}
 .qwrap .ql-editor.ql-blank::before{color:var(--mut);font-style:normal}
 .qwrap .ql-editor img{max-width:100%;height:auto}
 .qwrap .ql-snow .ql-stroke{stroke:var(--ink)}.qwrap .ql-snow .ql-fill{fill:var(--ink)}
@@ -564,4 +565,6 @@ select.st option{background:var(--stage);font-weight:600}
 .pricerow{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:8px 12px;border-radius:12px;background:var(--row)}
 .pricerow b{color:#a855f7}
 .qpshow{font-size:22px;color:#a855f7}
+.pcell{display:grid;gap:10px;align-content:start}
+.pform>*{min-width:0}
 </style>

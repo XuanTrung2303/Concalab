@@ -52,7 +52,7 @@
     <button class="pimg" @click="openP(x)" :aria-label="'Xem '+x.name"><span class="badge" v-if="x.badge||oos(x)">{{oos(x)?'Hết hàng':x.badge}}</span><span class="view">Xem chi tiết</span><span style="display:contents" v-html="pic(x,0)"></span></button>
     <div class="pb"><h3>{{x.name}}</h3><p class="d">{{x.description}}</p>
      <div class="sw"><i v-for="c in x.colors" :key="c.name" :style="{background:c.hex}" :title="c.name"></i></div>
-     <div class="pf"><div class="price">{{vnd(x.price_vnd)}}</div><button class="btn s" @click="addTo(x,0,1)">Thêm giỏ</button></div>
+     <div class="pf"><div class="price">{{x.price_contact?'Liên hệ':vnd(x.price_vnd)}}</div><button v-if="x.price_contact" class="btn s" @click="openP(x)">Liên hệ</button><button v-else class="btn s" @click="addTo(x,0,1)">Thêm giỏ</button></div>
     </div>
    </article>
   </div>
@@ -111,11 +111,12 @@
    <button v-if="cur.p.has_content" type="button" class="btn s o descbtn" @click="openDesc">Xem mô tả sản phẩm</button>
    <div class="lbl">Màu sắc: {{cur.p.colors[cur.ci].name}}</div>
    <div class="cols"><button v-for="(c,j) in cur.p.colors" :key="c.name" :class="{on:j==cur.ci}" @click="cur.ci=j"><i :style="{background:c.hex}"></i>{{c.name}}</button></div>
-   <div class="lbl">Số lượng</div>
-   <div class="qty"><button :disabled="cur.q<=1" @click="cur.q=Math.max(1,cur.q-1)" aria-label="Giảm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg></button><span>{{cur.q}}</span><button :disabled="cur.q>=99" @click="cur.q=Math.min(99,cur.q+1)" aria-label="Tăng"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></div>
+   <div class="lbl" v-if="!cur.p.price_contact">Số lượng</div>
+   <div class="qty" v-if="!cur.p.price_contact"><button :disabled="cur.q<=1" @click="cur.q=Math.max(1,cur.q-1)" aria-label="Giảm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg></button><span>{{cur.q}}</span><button :disabled="cur.q>=99" @click="cur.q=Math.min(99,cur.q+1)" aria-label="Tăng"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></div>
    <p v-if="oos(cur.p)" class="res">Sản phẩm này đã hết hàng, vui lòng chọn sản phẩm khác</p>
-   <div class="buy" :class="{dim:oos(cur.p)}"><div class="mprice">{{vnd(cur.p.price_vnd*cur.q)}}</div>
-    <div class="mact"><button class="btn o" @click="addTo(cur.p,cur.ci,cur.q,'Đã thêm vào giỏ')&&pd.close()">Thêm vào giỏ</button><button class="btn c" @click="addTo(cur.p,cur.ci,cur.q,'')&&(pd.close(),openCart())">Mua ngay</button></div></div>
+   <div class="buy" :class="{dim:oos(cur.p)}"><div class="mprice">{{cur.p.price_contact?'Giá liên hệ':vnd(cur.p.price_vnd*cur.q)}}</div>
+    <div class="mact" v-if="!cur.p.price_contact"><button class="btn o" @click="addTo(cur.p,cur.ci,cur.q,'Đã thêm vào giỏ')&&pd.close()">Thêm vào giỏ</button><button class="btn c" @click="addTo(cur.p,cur.ci,cur.q,'')&&(pd.close(),openCart())">Mua ngay</button></div>
+    <div class="mact" v-else><a class="btn o" :href="FB_URL||'#'" target="_blank" rel="noopener noreferrer" @click="needLink($event,FB_URL)">Liên hệ fanpage</a><a class="btn c" :href="ZALO_URL||'#'" target="_blank" rel="noopener noreferrer" @click="needLink($event,ZALO_URL)">Liên hệ Zalo</a></div></div>
   </div>
  </div>
 </dialog>
@@ -201,7 +202,9 @@
 import {ref,reactive,computed,watch,nextTick,onMounted} from 'vue'
 import {art} from './art.js'
 import DOMPurify from 'dompurify'
-const ZALO='09xx xxx xxx',BG=['#d6fbf4','#8fe6f2']
+const FB_URL=import.meta.env.VITE_FANPAGE_URL||'',ZALO_URL=import.meta.env.VITE_ZALO_URL||''   // liên kết nút "Liên hệ" cho sản phẩm giá liên hệ
+const needLink=(e,u)=>{if(!u){e.preventDefault();toast('Shop chưa cập nhật liên kết liên hệ, vui lòng thử lại sau')}}
+const ZALO=(/zalo\.me\/(\d+)/.exec(ZALO_URL)||[])[1]||'09xx xxx xxx',BG=['#d6fbf4','#8fe6f2']
 const vnd=n=>n.toLocaleString('vi-VN')+'đ'
 const products=ref([]),loading=ref(true),loadErr=ref(''),cat=ref('Tất cả'),cart=ref([]),cur=ref(null),done=ref(null)
 const pay=ref(null),fm=reactive({n:'',p:'',g:'',region:'danang',province:'',ward:'',street:''}),busy=ref(false),orderErr=ref(''),quoteMsg=ref(''),pd=ref(null),cd=ref(null),toastMsg=ref(''),toastOn=ref(false)
@@ -231,7 +234,7 @@ const ts=e=>{const t=e.touches[0];sx=t.clientX;sy=t.clientY}
 const te=e=>{const t=e.changedTouches[0],dx=t.clientX-sx,dy=t.clientY-sy;if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5)goPage(page.value+(dx<0?1:-1))}
 watch(cat,()=>{page.value=1})
 watch(pageCount,c=>{if(page.value>c)page.value=c})
-const lines=computed(()=>cart.value.map(o=>({...o,p:products.value.find(p=>p.id==o.id)})).filter(o=>o.p&&o.p.colors[o.ci]))
+const lines=computed(()=>cart.value.map(o=>({...o,p:products.value.find(p=>p.id==o.id)})).filter(o=>o.p&&o.p.colors[o.ci]&&!o.p.price_contact))
 const total=computed(()=>lines.value.reduce((s,o)=>s+o.p.price_vnd*o.q,0))
 const count=computed(()=>lines.value.reduce((s,o)=>s+o.q,0))
 const pic=(p,ci=0,meet)=>{const u=p.colors[ci]?.image_url||p.image_url   // màu không có ảnh riêng thì dùng ảnh chính
@@ -246,6 +249,7 @@ const oos=p=>p.in_stock===false
 const OOS_MSG='Sản phẩm này đã hết hàng, vui lòng chọn sản phẩm khác'
 function addTo(p,ci,q,msg){   // hết hàng thì không thêm được, chỉ hiện thông báo
   if(oos(p)){toast(OOS_MSG,3200);return false}
+  if(p.price_contact){toast('Sản phẩm này cần liên hệ để được báo giá');return false}
   add(p,ci,q);if(msg!=='')toast(msg||'Đã thêm '+p.name);return true
 }
 const save=()=>{try{localStorage.setItem('cc-cart',JSON.stringify(cart.value))}catch{}}
@@ -474,4 +478,5 @@ html body input:not([type=file]):not([type=checkbox]):not([type=radio]):not([typ
 @media (hover:hover){.qty button:not(:disabled):hover{background:var(--ink);color:var(--stage)}}
 dialog.descd{width:min(720px,calc(100% - 24px))}
 .rich.full{max-height:none;overflow:visible;background:none;padding:0;margin:0}
+.mact a.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;white-space:nowrap}
 </style>
