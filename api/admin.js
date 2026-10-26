@@ -7,6 +7,27 @@ const OS=['paid','shipping','done','cancelled'],QS=['new','quoted','accepted','p
 const AC=new Map()   // cache phiên đăng nhập 60 giây
 const rng=b=>{const p=Math.max(1,parseInt(b.page)||1);return [(p-1)*12,p*12-1]}   // 12 dòng mỗi trang
 const clean=q=>String(q||'').replace(/[,()%*\\"'`:]/g,' ').replace(/\s+/g,' ').trim().slice(0,50)   // bỏ ký tự đặc biệt để người dùng không phá được bộ lọc
+// ---- Đơn hàng Social (đơn tự nhập từ các kênh tư vấn) ----
+const CHANNELS=['facebook','zalo','tiktok','instagram','direct']
+const STAGE=['design_paid','ordered','shipping','done']
+const intv=v=>{if(v===''||v==null)return null;const n=Number(v);return Number.isInteger(n)&&n>=0&&n<=2e9?n:null}   // số nguyên 0..2 tỷ, rỗng = chưa nhập
+const txt=(v,m)=>String(v==null?'':v).trim().slice(0,m)
+const todayVN=()=>new Date(Date.now()+7*36e5).toISOString().slice(0,10)
+function socialBase(b){   // kiểm tra phần thông tin nhập tay của đơn Social
+  const v={customer_name:txt(b.customer_name,100),phone:txt(b.phone,30),address:txt(b.address,300),staff:txt(b.staff,100)}
+  if(!v.customer_name)return {error:'Vui lòng nhập tên khách hàng'}
+  if(!/^[0-9+\s.\-()]{6,30}$/.test(v.phone))return {error:'SĐT/Zalo không hợp lệ'}
+  if(!CHANNELS.includes(b.channel))return {error:'Vui lòng chọn kênh tư vấn'}
+  v.channel=b.channel
+  v.consult_date=b.consult_date?String(b.consult_date):todayVN()
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(v.consult_date)||isNaN(new Date(v.consult_date)))return {error:'Ngày tư vấn không hợp lệ'}
+  const dd=intv(b.design_deposit_vnd);if(dd===null)return {error:'Vui lòng nhập tiền cọc phí thiết kế (có thể là 0)'}
+  v.design_deposit_vnd=dd
+  const im=Array.isArray(b.images)?b.images:[]
+  if(im.length>10||im.some(u=>typeof u!=='string'||!/^https?:\/\//.test(u)||u.length>600))return {error:'Tối đa 10 ảnh hợp lệ'}
+  v.images=im
+  return {v}
+}
 const E=(res,m,c=400)=>res.status(c).json({error:m})
 const slug=t=>String(t).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')
 export default async function handler(req,res){
@@ -137,6 +158,50 @@ export default async function handler(req,res){
         if(['done','rejected'].includes(cur.status))return E(res,'Đơn đã khóa, không sửa được giá')
         if(!PRICE_EDIT.includes(cur.status))return E(res,'Chỉ sửa giá khi khách đã đồng ý hoặc đã thanh toán')
         await s.from('quote_requests').update({price_vnd:price}).eq('id',b.id);return res.json({})}
+      case 'social':{
+        const [f,t]=rng(b)
+        let qy=s.from('social_orders').select('*',{count:'exact'}).order('consult_date',{ascending:false}).order('created_at',{ascending:false})
+        if(kw)qy=qy.or(`customer_name.ilike.*${kw}*,phone.ilike.*${kw}*,staff.ilike.*${kw}*,address.ilike.*${kw}*`)
+        r=await qy.range(f,t)
+        return res.json({rows:r.data||[],total:r.count||0})}
+      case 'social.create':{   // nhập xong bấm lưu => trạng thái "Đã chuyển phí thiết kế"
+        const d=socialBase(b);if(d.error)return E(res,d.error)
+        const {data,error}=await s.from('social_orders').insert({...d.v,status:'design_paid'}).select('id').single()
+        if(error)return E(res,'Không lưu được đơn: '+error.message)
+        return res.json({id:data.id})}
+      case 'social.update':{   // sửa thông tin nhập tay, chỉ khi đơn chưa bị khóa
+        const d=socialBase(b);if(d.error)return E(res,d.error)
+        const {data:cur}=await s.from('social_orders').select('status').eq('id',b.id).single()
+        if(!cur)return E(res,'Không tìm thấy đơn')
+        if(['done','cancelled'].includes(cur.status))return E(res,'Đơn đã khóa, không sửa được')
+        await s.from('social_orders').update(d.v).eq('id',b.id);return res.json({})}
+      case 'social.status':{
+        const {data:cur}=await s.from('social_orders').select('status').eq('id',b.id).single()
+        if(!cur)return E(res,'Không tìm thấy đơn')
+        if(['done','cancelled'].includes(cur.status))return E(res,'Đơn đã khóa, không thể đổi trạng thái')
+        const to=b.to,upd={status:to}
+        if(to==='cancelled')upd.cancelled_from=cur.status                 // nhớ hủy ở bước nào để tính doanh thu giữ lại
+        else if(to!==STAGE[STAGE.indexOf(cur.status)+1])return E(res,'Không thể chuyển sang trạng thái này')   // chỉ đi tuần tự từng bước
+        if(to==='ordered'){
+          const dr=intv(b.design_remaining_vnd),od=intv(b.order_deposit_vnd),sh=intv(b.ship_fee_vnd)
+          if(dr===null||od===null||sh===null)return E(res,'Vui lòng nhập phí thiết kế còn lại, phí cọc đơn hàng và phí ship (có thể là 0)')
+          Object.assign(upd,{design_remaining_vnd:dr,order_deposit_vnd:od,ship_fee_vnd:sh})}
+        if(to==='shipping'){
+          const rem=intv(b.remaining_vnd);if(rem===null)return E(res,'Vui lòng nhập số tiền còn lại của đơn hàng (có thể là 0)')
+          upd.remaining_vnd=rem}
+        if(to==='done'&&b.remaining_vnd!=null&&b.remaining_vnd!==''){
+          const rem=intv(b.remaining_vnd);if(rem===null)return E(res,'Số tiền còn lại không hợp lệ')
+          upd.remaining_vnd=rem}
+        await s.from('social_orders').update(upd).eq('id',b.id);return res.json({})}
+      case 'social.amounts':{   // sửa số tiền của bước hiện tại, không đổi trạng thái
+        const {data:cur}=await s.from('social_orders').select('status').eq('id',b.id).single()
+        if(!cur)return E(res,'Không tìm thấy đơn')
+        const keys=cur.status==='ordered'?['design_remaining_vnd','order_deposit_vnd','ship_fee_vnd']:cur.status==='shipping'?['remaining_vnd','ship_fee_vnd']:null
+        if(!keys)return E(res,'Đơn ở trạng thái này không có số tiền để sửa')
+        const upd={}
+        for(const k of keys)if(b[k]!==undefined){const v=intv(b[k]);if(v===null)return E(res,'Số tiền không hợp lệ');upd[k]=v}
+        if(!Object.keys(upd).length)return E(res,'Chưa có số tiền nào để cập nhật')
+        await s.from('social_orders').update(upd).eq('id',b.id);return res.json({})}
       case 'quote.file':{
         const {data:qr}=await s.from('quote_requests').select('file_path').eq('id',b.id).single()
         if(!qr||!qr.file_path)return E(res,'Không có file')

@@ -32,7 +32,7 @@
     <div class="kpi" v-for="k in kpis" :key="k.t" :style="{'--kc':k.c}"><span class="kt">{{k.t}}</span><b class="kn">{{k.n}}</b><span class="ks">{{k.s}}</span></div>
    </div>
    <div class="card statbox">
-    <div class="sthead"><div><b>Thống kê đơn hàng và doanh thu</b><small>Đơn hàng, đang giao và đã giao gồm cả đơn có sẵn và đơn theo yêu cầu (đã được khách đồng ý). Doanh thu gồm tiền hàng của đơn có sẵn đã nhận tiền (không gồm phí ship) và giá đơn theo yêu cầu đã thanh toán. Đơn xếp theo ngày tạo.</small></div>
+    <div class="sthead"><div><b>Thống kê đơn hàng và doanh thu</b><small>Đơn hàng, đang giao và đã giao gồm cả đơn có sẵn và đơn theo yêu cầu (đã được khách đồng ý). Doanh thu gồm tiền hàng của đơn có sẵn đã nhận tiền (không gồm phí ship), giá đơn theo yêu cầu đã thanh toán và số tiền đã nhận của đơn Social (không gồm phí ship; đơn Social xếp theo ngày tư vấn). Đơn xếp theo ngày tạo.</small></div>
      <div class="seg" role="tablist"><button v-for="p in [['month','Tháng'],['quarter','Quý'],['year','Năm']]" :key="p[0]" :class="{on:period==p[0]}" @click="period=p[0]">{{p[1]}}</button></div></div>
     <div class="charts">
      <div class="chbox" v-for="c in charts" :key="c.title">
@@ -117,6 +117,33 @@
    <nav class="pager" v-if="pages('quotes')>1"><button :disabled="pg.quotes<=1" @click="goPg('quotes',pg.quotes-1)" aria-label="Trang trước">‹</button><button v-for="n in pages('quotes')" :key="n" :class="{on:n==pg.quotes}" @click="goPg('quotes',n)">{{n}}</button><button :disabled="pg.quotes>=pages('quotes')" @click="goPg('quotes',pg.quotes+1)" aria-label="Trang sau">›</button></nav>
    <p class="empty" v-if="loading&&!quotes.length">Đang tải…</p>
    <p class="empty" v-if="!loading&&!quotes.length">{{search.quotes?'Không tìm thấy kết quả phù hợp.':'Chưa có yêu cầu.'}}</p>
+  </section>
+
+  <section v-else-if="tab=='social'">
+   <div class="sh"><div class="sl"><button class="btn s" @click="sNew()">+ Thêm đơn Social</button></div><h2>Đơn hàng Social</h2><div class="sbar"><span class="si">🔍</span><input type="search" v-model="search.social" placeholder="Tìm theo tên, SĐT, nhân viên, địa chỉ…" @input="onSearch('social')"><button v-if="search.social" type="button" class="sx" @click="search.social='';onSearch('social',0)" aria-label="Xóa tìm kiếm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div></div>
+   <p class="sub">Đơn bạn tự nhập từ các kênh tư vấn. Phí ship tính riêng, không vào doanh thu.</p>
+   <div class="grid">
+    <div class="card" v-for="s in social" :key="s.id">
+     <div class="hd"><b>{{s.customer_name}} · {{s.phone}}</b>
+      <select class="st" :style="{'--sc':SSC[s.status]}" :value="s.status" :disabled="isSLocked(s)" @change="sSetStatus(s,$event.target.value,$event)"><option v-for="o in sOptions(s)" :key="o" :value="o" :style="{color:SSC[o]}">{{SLAB[o]}}</option></select></div>
+     <small v-if="isSLocked(s)">🔒 Đơn đã khóa, không thể đổi trạng thái</small>
+     <div class="chline"><span class="chnl">{{SCH[s.channel]}}</span><small>{{s.staff||'Chưa ghi nhân viên'}} · Tư vấn {{dmy(s.consult_date)}}</small></div>
+     <small class="cl2" v-if="s.address">📍 {{s.address}}</small>
+     <div class="cthumbs" v-if="s.images&&s.images.length"><a v-for="u in s.images.slice(0,4)" :key="u" :href="u" target="_blank" rel="noopener"><img :src="u" alt="" loading="lazy" decoding="async"></a><span v-if="s.images.length>4">+{{s.images.length-4}}</span></div>
+     <div class="mbox">
+      <div class="mrow"><span>Cọc phí thiết kế</span><b>{{vnd(s.design_deposit_vnd)}}</b></div>
+      <template v-if="stageIdx(s)>=1"><div class="mrow"><span>Phí thiết kế còn lại</span><b>{{vnd(s.design_remaining_vnd)}}</b></div><div class="mrow"><span>Phí cọc đơn hàng</span><b>{{vnd(s.order_deposit_vnd)}}</b></div></template>
+      <div class="mrow" v-if="stageIdx(s)>=2"><span>Số tiền còn lại</span><b>{{vnd(s.remaining_vnd)}}</b></div>
+      <div class="mrow big"><span>Tổng giá trị đơn hàng</span><b>{{vnd(sTotal(s))}}</b></div>
+      <div class="mrow" v-if="stageIdx(s)>=1"><span>Phí ship (tính riêng)</span><b>{{vnd(s.ship_fee_vnd)}}</b></div>
+      <small class="rv">Tính vào doanh thu: <b>{{vnd(sRevenue(s))}}</b></small>
+     </div>
+     <div class="acts" v-if="!isSLocked(s)"><button class="btn s b-edit" @click="sEdit(s)">Sửa thông tin</button><button v-if="canAmounts(s)" class="btn s o" @click="sAsk(s,'amounts')">Sửa số tiền</button></div>
+    </div>
+   </div>
+   <nav class="pager" v-if="pages('social')>1"><button :disabled="pg.social<=1" @click="goPg('social',pg.social-1)" aria-label="Trang trước">‹</button><button v-for="n in pages('social')" :key="n" :class="{on:n==pg.social}" @click="goPg('social',n)">{{n}}</button><button :disabled="pg.social>=pages('social')" @click="goPg('social',pg.social+1)" aria-label="Trang sau">›</button></nav>
+   <p class="empty" v-if="loading&&!social.length">Đang tải…</p>
+   <p class="empty" v-if="!loading&&!social.length">{{search.social?'Không tìm thấy kết quả phù hợp.':'Chưa có đơn Social nào. Bấm “+ Thêm đơn Social” để nhập.'}}</p>
   </section>
 
   <section v-else class="prof">
@@ -210,6 +237,34 @@
    <b v-if="qpNum" class="qpshow">{{vnd(qpNum)}}</b>
    <button class="btn c" :disabled="busy">{{qpStatus?'Lưu giá và đổi trạng thái':'Lưu giá'}}</button>
   </form></dialog>
+ <dialog ref="sf" style="width:min(560px,calc(100% - 24px))" @click.self="sf.close()"><button class="x" @click="sf.close()" aria-label="Đóng"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  <form class="pform" @submit.prevent="sSave">
+   <h3>{{sForm.id?'Sửa thông tin đơn Social':'Thêm đơn hàng Social'}}</h3>
+   <div class="f2"><label>Tên khách hàng<input v-model="sForm.customer_name" required></label><label>SĐT / Zalo<input v-model="sForm.phone" required inputmode="tel"></label></div>
+   <div class="f2"><label>Kênh tư vấn<select v-model="sForm.channel"><option v-for="(l,k) in SCH" :key="k" :value="k">{{l}}</option></select></label><label>Ngày tư vấn<input type="date" v-model="sForm.consult_date" required></label></div>
+   <label>Địa chỉ giao hàng<input v-model="sForm.address"></label>
+   <div class="f2"><label>Nhân viên tư vấn<input v-model="sForm.staff"></label><label>Tiền cọc phí thiết kế (VNĐ)<input v-model="sForm.design_deposit" inputmode="numeric" required placeholder="VD: 500000"></label></div>
+   <label>File hình ảnh (tối đa 10 ảnh)<div class="logo"><input type="file" accept="image/*" multiple @change="sPickImages"></div></label>
+   <div class="thumbs" v-if="sForm.images.length"><div class="thumb" v-for="(u,i) in sForm.images" :key="u"><img :src="u" alt=""><button type="button" @click="sForm.images.splice(i,1)" aria-label="Xóa ảnh">×</button></div></div>
+   <button class="btn c" :disabled="busy">{{sForm.id?'Lưu thay đổi':'Lưu đơn hàng'}}</button>
+   <small v-if="!sForm.id" style="color:var(--mut)">Sau khi lưu, đơn ở trạng thái “Đã chuyển phí thiết kế”.</small>
+  </form></dialog>
+ <dialog ref="sd" style="width:min(480px,calc(100% - 24px))" @click.self="sd.close()"><button class="x" @click="sd.close()" aria-label="Đóng"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  <form class="pform" v-if="sdItem" @submit.prevent="sdSubmit">
+   <h3>{{SDT[sdKind]}}</h3>
+   <p class="sub" style="margin:0;text-align:left">{{sdItem.customer_name}} · {{sdItem.phone}}</p>
+   <p v-if="sdKind==='cancel'" style="margin:0;color:var(--mut);line-height:1.5">Hủy đơn đang ở bước “{{SLAB[sdItem.status]}}”. Khoản khách đã trả được giữ lại và tính vào doanh thu. Sau khi hủy, đơn bị khóa.</p>
+   <label v-if="sdFields.includes('dr')">Phí thiết kế còn lại (VNĐ)<input v-model="sdF.dr" inputmode="numeric" required placeholder="VD: 1500000"></label>
+   <label v-if="sdFields.includes('od')">Phí cọc đơn hàng (VNĐ)<input v-model="sdF.od" inputmode="numeric" required placeholder="VD: 3000000"></label>
+   <label v-if="sdFields.includes('ship')">Phí ship (VNĐ, tính riêng, không vào doanh thu)<input v-model="sdF.ship" inputmode="numeric" required placeholder="VD: 40000"></label>
+   <label v-if="sdFields.includes('rem')">Số tiền còn lại của đơn hàng (VNĐ)<input v-model="sdF.rem" inputmode="numeric" required placeholder="VD: 5000000"></label>
+   <div class="mbox" v-if="sdEff">
+    <div class="mrow big"><span>Tổng giá trị đơn hàng</span><b>{{vnd(sdEff.total)}}</b></div>
+    <div class="mrow"><span>Phí ship (tính riêng)</span><b>{{vnd(sdEff.ship)}}</b></div>
+    <small class="rv">Tính vào doanh thu: <b>{{vnd(sdEff.rev)}}</b></small>
+   </div>
+   <button class="btn c" :style="sdKind==='cancel'?{background:'#d93b3b',color:'#fff'}:null" :disabled="busy">{{sdKind==='cancel'?'Xác nhận hủy đơn':'Lưu'}}</button>
+  </form></dialog>
  <div id="toast" :class="{on:tOn}" role="status">{{tMsg}}</div>
 </div>
 </template>
@@ -218,8 +273,8 @@
 import {ref,reactive,computed,nextTick} from 'vue'
 const ORD={new:'Chờ xác nhận thanh toán',paid:'Đã thanh toán',shipping:'Đang giao hàng',done:'Giao hàng thành công',cancelled:'Đã hủy'}
 const QS={new:'Mới',quoted:'Đã báo giá',accepted:'Khách đồng ý',paid:'Đã thanh toán',shipping:'Đang giao hàng',done:'Giao hàng thành công',rejected:'Từ chối'}
-const PER=12,pg=reactive({products:1,orders:1,quotes:1})   // mỗi trang tối đa 12 thẻ (4 hàng × 3 cột)
-const total=reactive({products:0,orders:0,quotes:0}),loading=ref(false),cache=new Map()   // chỉ tải 12 dòng mỗi trang; nhớ trang đã xem để chuyển tab là hiện ngay
+const PER=12,pg=reactive({products:1,orders:1,quotes:1,social:1})   // mỗi trang tối đa 12 thẻ (4 hàng × 3 cột)
+const total=reactive({products:0,orders:0,quotes:0,social:0}),loading=ref(false),cache=new Map()   // chỉ tải 12 dòng mỗi trang; nhớ trang đã xem để chuyển tab là hiện ngay
 const pages=k=>Math.max(1,Math.ceil(total[k]/PER))
 // màu từng trạng thái: xanh dương = đã thanh toán, cam = đang giao, xanh lá = thành công, đỏ = hủy/từ chối
 const SC={new:'#eab308',paid:'#3b82f6',quoted:'#a855f7',accepted:'#14b8a6',shipping:'#f59e0b',done:'#22c55e',cancelled:'#ef4444',rejected:'#ef4444'}
@@ -299,7 +354,7 @@ function syncContent(){   // lấy nội dung từ trình soạn thảo trước
 function periodsOf(kind,months,nowMs){   // gộp số liệu tháng thành tháng / quý / năm (giờ Việt Nam)
   const now=new Date(nowMs+7*36e5),cy=now.getUTCFullYear(),cm=now.getUTCMonth()+1
   const src={};for(const r of months||[])src[r.ym]=r
-  const sum=keys=>{const a={orders:0,shipping:0,done:0,cancelled:0,pending:0,revenue:0,custom_orders:0,custom_shipping:0,custom_done:0,custom_revenue:0};for(const k of keys){const r=src[k];if(r)for(const f in a)a[f]+=Number(r[f]||0)}return a}
+  const sum=keys=>{const a={orders:0,shipping:0,done:0,cancelled:0,pending:0,revenue:0,custom_orders:0,custom_shipping:0,custom_done:0,custom_revenue:0,social_orders:0,social_shipping:0,social_done:0,social_revenue:0};for(const k of keys){const r=src[k];if(r)for(const f in a)a[f]+=Number(r[f]||0)}return a}
   const mk=(y,m)=>y+'-'+String(m).padStart(2,'0'),out=[]
   if(kind==='month')for(let i=11;i>=0;i--){let y=cy,m=cm-i;while(m<1){m+=12;y--}out.push({label:'Tháng '+m+'/'+y,tick:m+'/'+String(y).slice(2),...sum([mk(y,m)])})}
   if(kind==='quarter'){let q=Math.ceil(cm/3),y=cy;const list=[];for(let i=0;i<8;i++){list.unshift({y,q});q--;if(q<1){q=4;y--}}
@@ -330,20 +385,89 @@ async function loadStats(){
 }
 const rows=computed(()=>periodsOf(period.value,ov.value&&ov.value.months,Date.now()))
 const rowsDesc=computed(()=>rows.value.slice().reverse())
-const tot=computed(()=>{const a={orders:0,shipping:0,done:0,revenue:0,custom_orders:0,custom_shipping:0,custom_done:0,custom_revenue:0};for(const r of (ov.value&&ov.value.months)||[])for(const f in a)a[f]+=Number(r[f]||0);return a})
+const tot=computed(()=>{const a={orders:0,shipping:0,done:0,revenue:0,custom_orders:0,custom_shipping:0,custom_done:0,custom_revenue:0,social_orders:0,social_shipping:0,social_done:0,social_revenue:0};for(const r of (ov.value&&ov.value.months)||[])for(const f in a)a[f]+=Number(r[f]||0);return a})
 const mon=computed(()=>periodsOf('month',ov.value&&ov.value.months,Date.now()).slice(-1)[0]||{orders:0,done:0,revenue:0})
 const charts=computed(()=>[
   {title:'Doanh thu',color:'#a855f7',g:chartGeom(rows.value.map(r=>r.revenue),rows.value.map(r=>r.tick),short,false),full:vnd},
   {title:'Số đơn hàng',color:'#3b82f6',g:chartGeom(rows.value.map(r=>r.orders),rows.value.map(r=>r.tick),n=>String(Math.round(n)),true),full:v=>v+' đơn'}
 ])
 const kpis=computed(()=>{const t=tot.value,m=mon.value
+  const split=(all,c,so)=>'Có sẵn: '+(all-c-so)+' · Theo yêu cầu: '+c+' · Social: '+so
   return [
-    {t:'Tổng đơn hàng',n:t.orders.toLocaleString('vi-VN'),s:'Có sẵn: '+(t.orders-t.custom_orders)+' · Theo yêu cầu: '+t.custom_orders+' · Tháng này: '+m.orders,c:'#3b82f6'},
-    {t:'Đang giao hàng',n:t.shipping.toLocaleString('vi-VN'),s:'Có sẵn: '+(t.shipping-t.custom_shipping)+' · Theo yêu cầu: '+t.custom_shipping,c:'#f59e0b'},
-    {t:'Đã giao thành công',n:t.done.toLocaleString('vi-VN'),s:'Có sẵn: '+(t.done-t.custom_done)+' · Theo yêu cầu: '+t.custom_done+' · Tháng này: '+m.done,c:'#22c55e'},
-    {t:'Doanh thu',n:vnd(t.revenue),s:'Có sẵn: '+vnd(t.revenue-t.custom_revenue)+' · Theo yêu cầu: '+vnd(t.custom_revenue)+' · Tháng này: '+vnd(m.revenue),c:'#a855f7'}
+    {t:'Tổng đơn hàng',n:t.orders.toLocaleString('vi-VN'),s:split(t.orders,t.custom_orders,t.social_orders)+' · Tháng này: '+m.orders,c:'#3b82f6'},
+    {t:'Đang giao hàng',n:t.shipping.toLocaleString('vi-VN'),s:split(t.shipping,t.custom_shipping,t.social_shipping),c:'#f59e0b'},
+    {t:'Đã giao thành công',n:t.done.toLocaleString('vi-VN'),s:split(t.done,t.custom_done,t.social_done)+' · Tháng này: '+m.done,c:'#22c55e'},
+    {t:'Doanh thu',n:vnd(t.revenue),s:'Có sẵn: '+vnd(t.revenue-t.custom_revenue-t.social_revenue)+' · Theo yêu cầu: '+vnd(t.custom_revenue)+' · Social: '+vnd(t.social_revenue)+' · Tháng này: '+vnd(m.revenue),c:'#a855f7'}
   ]})
-const tabs=[['overview','Tổng quan'],['products','Sản phẩm'],['categories','Danh mục'],['orders','Đơn hàng'],['quotes','Đơn theo yêu cầu']]
+// ---- Đơn hàng Social: đơn tự nhập từ các kênh tư vấn ----
+const SLAB={design_paid:'Đã chuyển phí thiết kế',ordered:'Đã đặt hàng',shipping:'Đang giao hàng',done:'Giao hàng thành công',cancelled:'Đã hủy'}
+const SSC={design_paid:'#eab308',ordered:'#3b82f6',shipping:'#f59e0b',done:'#22c55e',cancelled:'#ef4444'}
+const SCH={facebook:'Facebook',zalo:'Zalo',tiktok:'Tiktok',instagram:'Insta',direct:'Tư vấn trực tiếp'}
+const SDT={ordered:'Đã đặt hàng',shipping:'Đang giao hàng',done:'Giao hàng thành công',cancel:'Hủy đơn hàng',amounts:'Sửa số tiền'}
+const STAGE=['design_paid','ordered','shipping','done']
+// SOCIAL-BEGIN
+const n0=v=>Number(v)||0
+const sTotal=s=>n0(s.design_deposit_vnd)+n0(s.design_remaining_vnd)+n0(s.order_deposit_vnd)+n0(s.remaining_vnd)   // tổng giá trị đơn hàng, KHÔNG gồm phí ship
+function sRevenue(s){   // khoản tính vào doanh thu (không gồm phí ship); khớp với hàm stats_monthly trong SQL
+  const dd=n0(s.design_deposit_vnd),paid=dd+n0(s.design_remaining_vnd)+n0(s.order_deposit_vnd)
+  if(s.status==='design_paid')return dd
+  if(s.status==='ordered')return paid
+  if(s.status==='shipping'||s.status==='done')return paid+n0(s.remaining_vnd)
+  if(s.status==='cancelled')return s.cancelled_from==='design_paid'?dd:paid   // hủy: giữ lại phần đã nhận
+  return 0
+}
+const sOptions=s=>(s.status==='done'||s.status==='cancelled')?[s.status]:[s.status,STAGE[STAGE.indexOf(s.status)+1],'cancelled']
+// SOCIAL-END
+const isSLocked=s=>s.status==='done'||s.status==='cancelled'
+const canAmounts=s=>s.status==='ordered'||s.status==='shipping'
+const stageIdx=s=>s.status==='cancelled'?STAGE.indexOf(s.cancelled_from):STAGE.indexOf(s.status)
+const dmy=d=>d?String(d).split('-').reverse().join('/'):''
+const numOf=v=>Number(String(v).replace(/\D/g,''))||0
+const todayVN=()=>new Date(Date.now()+7*36e5).toISOString().slice(0,10)
+// biểu mẫu thêm / sửa thông tin
+const sf=ref(null),sForm=reactive({id:null,customer_name:'',phone:'',channel:'facebook',address:'',staff:'',consult_date:'',design_deposit:'',images:[]})
+function sNew(){Object.assign(sForm,{id:null,customer_name:'',phone:'',channel:'facebook',address:'',staff:'',consult_date:todayVN(),design_deposit:'',images:[]});sf.value.showModal()}
+function sEdit(s){Object.assign(sForm,{id:s.id,customer_name:s.customer_name,phone:s.phone,channel:s.channel,address:s.address||'',staff:s.staff||'',consult_date:s.consult_date,design_deposit:String(s.design_deposit_vnd),images:[...(s.images||[])]});sf.value.showModal()}
+async function sPickImages(e){
+  const files=[...e.target.files];e.target.value=''
+  for(const f of files){if(sForm.images.length>=10){toast('Tối đa 10 ảnh');break}
+    await run(async()=>{sForm.images.push(await uploadImg(f,1200))})}
+}
+const sSave=()=>run(async()=>{
+  const isNew=!sForm.id
+  const body={customer_name:sForm.customer_name,phone:sForm.phone,channel:sForm.channel,address:sForm.address,staff:sForm.staff,consult_date:sForm.consult_date,design_deposit_vnd:numOf(sForm.design_deposit),images:sForm.images}
+  if(isNew)await api('social.create',body);else await api('social.update',{id:sForm.id,...body})
+  sf.value.close();cache.clear();if(isNew){pg.social=1;search.social=''}
+  toast(isNew?'Đã lưu đơn, trạng thái: Đã chuyển phí thiết kế':'Đã cập nhật thông tin');go('social')
+})
+// hộp thoại đổi trạng thái / nhập số tiền
+const sd=ref(null),sdItem=ref(null),sdKind=ref(''),sdF=reactive({dr:'',od:'',ship:'',rem:''})
+const sdFields=computed(()=>{const k=sdKind.value,s=sdItem.value
+  return k==='ordered'?['dr','od','ship']:(k==='shipping'||k==='done')?['rem']:k==='amounts'&&s?(s.status==='ordered'?['dr','od','ship']:['rem','ship']):[]})
+function sAsk(s,kind){
+  sdItem.value=s;sdKind.value=kind
+  const keep=kind==='done'||kind==='amounts',p=v=>keep?String(n0(v)):(n0(v)>0?String(n0(v)):'')
+  sdF.dr=p(s.design_remaining_vnd);sdF.od=p(s.order_deposit_vnd);sdF.ship=p(s.ship_fee_vnd);sdF.rem=p(s.remaining_vnd)
+  sd.value.showModal()
+}
+function sSetStatus(s,to,ev){ev.target.value=s.status;if(to!==s.status)sAsk(s,to==='cancelled'?'cancel':to)}   // ô chọn luôn quay về trạng thái hiện tại, đổi thật sau khi bấm Lưu
+const sdEff=computed(()=>{const s=sdItem.value;if(!s)return null
+  const f=sdFields.value,g=(k,cur)=>f.includes(k)?numOf(sdF[k]):n0(cur)
+  const v={...s,design_remaining_vnd:g('dr',s.design_remaining_vnd),order_deposit_vnd:g('od',s.order_deposit_vnd),ship_fee_vnd:g('ship',s.ship_fee_vnd),remaining_vnd:g('rem',s.remaining_vnd)}
+  const k=sdKind.value
+  return {total:sTotal(v),ship:v.ship_fee_vnd,rev:k==='cancel'?sRevenue({...v,status:'cancelled',cancelled_from:s.status}):sRevenue({...v,status:k==='amounts'?s.status:k})}})
+const sdSubmit=()=>run(async()=>{
+  const s=sdItem.value,k=sdKind.value,amt={design_remaining_vnd:numOf(sdF.dr),order_deposit_vnd:numOf(sdF.od),ship_fee_vnd:numOf(sdF.ship),remaining_vnd:numOf(sdF.rem)}
+  if(k==='amounts'){const b={id:s.id};for(const x of(s.status==='ordered'?['design_remaining_vnd','order_deposit_vnd','ship_fee_vnd']:['remaining_vnd','ship_fee_vnd']))b[x]=amt[x];await api('social.amounts',b)}
+  else{
+    const b={id:s.id,to:k==='cancel'?'cancelled':k}
+    if(k==='ordered')Object.assign(b,{design_remaining_vnd:amt.design_remaining_vnd,order_deposit_vnd:amt.order_deposit_vnd,ship_fee_vnd:amt.ship_fee_vnd})
+    if(k==='shipping'||k==='done')b.remaining_vnd=amt.remaining_vnd
+    await api('social.status',b)
+  }
+  sd.value.close();cache.clear();toast('Đã cập nhật đơn hàng');go('social')
+})
+const tabs=[['overview','Tổng quan'],['products','Sản phẩm'],['categories','Danh mục'],['orders','Đơn hàng'],['quotes','Đơn theo yêu cầu'],['social','Đơn hàng Social']]
 const vnd=n=>Number(n).toLocaleString('vi-VN')+'đ',dt=d=>new Date(d).toLocaleString('vi-VN')
 const tok=ref(localStorage.getItem('cc-at')||''),em=ref(''),pw=ref(''),msg=ref(''),busy=ref(false),tab=ref('products')
 const products=ref([]),orders=ref([]),quotes=ref([])
@@ -360,8 +484,9 @@ async function run(fn){busy.value=true;try{await fn()}catch(e){toast(e.message)}
 async function login(){busy.value=true;msg.value=''
   try{const j=await api('login',{email:em.value,password:pw.value});tok.value=j.token;localStorage.setItem('cc-at',j.token);init()}catch(e){msg.value=e.message}
   busy.value=false}
-const L={products,orders,quotes}
-const search=reactive({products:'',orders:'',quotes:'',categories:''})
+const social=ref([])
+const L={products,orders,quotes,social}
+const search=reactive({products:'',orders:'',quotes:'',social:'',categories:''})
 const ck=(t,page,q)=>t+':'+page+':'+q   // khóa cache gồm cả từ khóa tìm kiếm
 async function load(t,page){
   const qq=(search[t]||'').trim()
@@ -567,4 +692,16 @@ select.st option{background:var(--stage);font-weight:600}
 .qpshow{font-size:22px;color:#a855f7}
 .pcell{display:grid;gap:10px;align-content:start}
 .pform>*{min-width:0}
+.chline{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.chnl{display:inline-block;padding:3px 10px;border-radius:99px;background:var(--row);font-size:12px;font-weight:700}
+.cthumbs{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.cthumbs img{width:44px;height:44px;border-radius:10px;object-fit:cover;display:block}
+.mbox{display:grid;gap:6px;padding:12px;border-radius:14px;background:var(--row)}
+.mrow{display:flex;justify-content:space-between;gap:10px;font-size:14px}
+.mrow.big{font-size:16px;font-weight:700;border-top:1px dashed var(--bd);padding-top:8px;margin-top:2px}
+.mbox .rv{color:var(--mut)}.mbox .rv b{color:#a855f7}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap}
+.thumb{position:relative;width:64px;height:64px}
+.thumb img{width:100%;height:100%;object-fit:cover;border-radius:12px;display:block}
+.thumb button{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;border:0;background:#d93b3b;color:#fff;font-size:15px;line-height:1;cursor:pointer;padding:0}
 </style>
