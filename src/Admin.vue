@@ -47,7 +47,14 @@
     </div>
     <div class="tscroll"><table class="stab">
      <thead><tr><th>{{period=='month'?'Tháng':period=='quarter'?'Quý':'Năm'}}</th><th>Đơn hàng</th><th>Đang giao</th><th>Đã giao</th><th>Doanh thu</th></tr></thead>
-     <tbody><tr v-for="(r,i) in rowsDesc" :key="r.label" :class="{cur:i==0}"><td>{{r.label}}</td><td>{{r.orders}}</td><td>{{r.shipping}}</td><td>{{r.done}}</td><td>{{vnd(r.revenue)}}</td></tr></tbody>
+     <tbody>
+      <template v-for="(r,i) in rowsDesc" :key="r.label">
+       <tr class="tot" :class="{cur:i==0,has:r.orders>0||r.revenue>0}"><td>{{r.label}}</td><td>{{r.orders}}</td><td>{{r.shipping}}</td><td>{{r.done}}</td><td>{{vnd(r.revenue)}}</td></tr>
+       <template v-if="r.orders>0||r.revenue>0">
+        <tr class="sub" v-for="g in groupsOf(r)" :key="r.label+g.k"><td><i class="dot" :style="{background:g.c}"></i>{{g.name}}</td><td>{{g.orders}}</td><td>{{g.shipping}}</td><td>{{g.done}}</td><td>{{vnd(g.revenue)}}</td></tr>
+       </template>
+      </template>
+     </tbody>
     </table></div>
    </div>
   </section>
@@ -375,6 +382,15 @@ function chartGeom(vals,labels,fmt,int){   // đường + vùng tô + các đi�
   const line=pts.map((p,i)=>(i?'L':'M')+p.x+' '+p.y).join(' ')
   const area=n?line+' L'+pts[n-1].x+' '+base+' L'+pts[0].x+' '+base+' Z':''
   return {pts,line,area,base,ticks:[0,1,2,3,4].map(i=>({y:+(CH.T+ih*(1-i/4)).toFixed(1),text:fmt(mx*i/4)}))}
+}
+function groupsOf(r){   // tách số liệu của một kỳ theo loại đơn: có sẵn / theo yêu cầu / Social
+  const g=(k,name,c,o,sh,dn,rv)=>({k,name,c,orders:o,shipping:sh,done:dn,revenue:rv})
+  const n=v=>Number(v)||0
+  return [
+    g('std','Đơn hàng có sẵn','#3b82f6',n(r.orders)-n(r.custom_orders)-n(r.social_orders),n(r.shipping)-n(r.custom_shipping)-n(r.social_shipping),n(r.done)-n(r.custom_done)-n(r.social_done),n(r.revenue)-n(r.custom_revenue)-n(r.social_revenue)),
+    g('custom','Đơn theo yêu cầu','#14b8a6',n(r.custom_orders),n(r.custom_shipping),n(r.custom_done),n(r.custom_revenue)),
+    g('social','Đơn Social','#ec4899',n(r.social_orders),n(r.social_shipping),n(r.social_done),n(r.social_revenue))
+  ]
 }
 // STATS-END
 const ov=ref(null),period=ref('month'),statsLoading=ref(false)
@@ -704,4 +720,9 @@ select.st option{background:var(--stage);font-weight:600}
 .thumb{position:relative;width:64px;height:64px}
 .thumb img{width:100%;height:100%;object-fit:cover;border-radius:12px;display:block}
 .thumb button{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;border:0;background:#d93b3b;color:#fff;font-size:15px;line-height:1;cursor:pointer;padding:0}
+.stab tr.tot.has td{font-weight:700}
+.stab tr.sub td{font-size:13px;color:var(--mut);padding:7px 12px}
+.stab tr.sub td:first-child{padding-left:26px;white-space:nowrap}
+.stab tr.sub:last-of-type td,.stab tr.sub+tr.tot td{border-top:0}
+.stab .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px}
 </style>
