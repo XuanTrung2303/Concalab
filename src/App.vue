@@ -35,6 +35,7 @@
  
  <div class="sec" id="shop">
   <div class="shophead">
+   <div><h2>Sản phẩm có sẵn</h2></div>
    <div class="chipbar">
     <button class="cnav" :disabled="cs<=0" @click="chipMove(-1)" aria-label="Danh mục trước"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
     <div class="chipcol">
