@@ -35,7 +35,6 @@
  
  <div class="sec" id="shop">
   <div class="shophead">
-   <div><h2>Sản phẩm có sẵn</h2><p class="sub">Bấm vào ảnh để xem chi tiết, chọn màu và đặt mua. Giao nhanh, không cần chờ in.</p></div>
    <div class="chipbar">
     <button class="cnav" :disabled="cs<=0" @click="chipMove(-1)" aria-label="Danh mục trước"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
     <div class="chipcol">
@@ -98,7 +97,7 @@
  </div>
 
  <div class="band"><div><h2>Có ý tưởng rồi?</h2><p>Gửi cho Con Cá Lab, biến nó thành sản phẩm thật.</p></div><a class="btn w" href="#custom">Báo giá ngay</a></div>
- <div class="ct" id="lien-he"><span class="lg fl" role="img" aria-label="Con Cá Lab"><i class="n"></i><i class="c"></i></span>Zalo 09xx xxx xxx · hello@concalab.vn · Hội An, Đà Nẵng<br>© 2026 · In 3D từng lớp, làm nên ý tưởng</div>
+ <div class="ct" id="lien-he"><span class="lg fl" role="img" aria-label="Con Cá Lab"><i class="n"></i><i class="c"></i></span>Zalo 09xx xxx xxx · concalab@gmail.com · Đống Đa, Hải Châu, Đà Nẵng<br>© 2026 · In 3D từng lớp, làm nên ý tưởng</div>
 </div>
 
 <dialog ref="pd" aria-label="Chi tiết sản phẩm" @click.self="pd.close()">
