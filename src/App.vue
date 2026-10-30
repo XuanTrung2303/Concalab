@@ -35,7 +35,7 @@
  
  <div class="sec" id="shop">
   <div class="shophead">
-   <div><h2>Sản phẩm có sẵn</h2></div>
+   <div><h2>Sản phẩm có sẵn</h2><p class="sub">Bấm vào ảnh để xem chi tiết, chọn màu và đặt mua. Giao nhanh, không cần chờ in.</p></div>
    <div class="chipbar">
     <button class="cnav" :disabled="cs<=0" @click="chipMove(-1)" aria-label="Danh mục trước"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
     <div class="chipcol">
@@ -98,19 +98,25 @@
  </div>
 
  <div class="band"><div><h2>Có ý tưởng rồi?</h2><p>Gửi cho Con Cá Lab, biến nó thành sản phẩm thật.</p></div><a class="btn w" href="#custom">Báo giá ngay</a></div>
- <div class="ct" id="lien-he"><span class="lg fl" role="img" aria-label="Con Cá Lab"><i class="n"></i><i class="c"></i></span>Zalo 09xx xxx xxx · concalab@gmail.com · Đống Đa, Hải Châu, Đà Nẵng<br>© 2026 · In 3D từng lớp, làm nên ý tưởng</div>
+ <div class="ct" id="lien-he"><span class="lg fl" role="img" aria-label="Con Cá Lab"><i class="n"></i><i class="c"></i></span>Zalo 09xx xxx xxx · hello@concalab.vn · Hội An, Đà Nẵng<br>© 2026 · In 3D từng lớp, làm nên ý tưởng</div>
 </div>
 
 <dialog ref="pd" aria-label="Chi tiết sản phẩm" @click.self="pd.close()">
  <button class="x" @click="pd.close()" aria-label="Đóng"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
  <div class="md" v-if="cur">
-  <div class="mimg" :style="{background:'linear-gradient(135deg,'+BG[0]+','+BG[1]+')'}" v-html="pic(cur.p,cur.ci,true)"></div>
+  <div class="mleft">
+   <div class="mimg" :style="{background:'linear-gradient(135deg,'+BG[0]+','+BG[1]+')'}" @touchstart.passive="gts" @touchend.passive="gte">
+    <span class="mmain" v-html="mainHtml"></span>
+    <template v-if="gal.length>1"><button type="button" class="gnav gprev" @click="gGo(gIdx-1)" aria-label="Ảnh trước"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button><button type="button" class="gnav gnext" @click="gGo(gIdx+1)" aria-label="Ảnh sau"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button><span class="gcount">{{gIdx+1}}/{{gal.length}}</span></template>
+   </div>
+   <div class="mthumbs" ref="thumbsEl" v-if="gal.length>1"><button type="button" v-for="(u,i) in gal" :key="u+i" :class="{on:i==gIdx}" @click="gGo(i)" :aria-label="'Xem ảnh '+(i+1)"><img :src="u" alt="" loading="lazy" decoding="async"></button></div>
+  </div>
   <div class="minfo">
    <span class="tag">{{cur.p.category}}</span><h3>{{cur.p.name}}</h3><p>{{cur.p.description}}</p>
    <div class="specs"><div>Kích thước<b>{{cur.p.size_mm}} mm</b></div><div>Vật liệu<b>{{cur.p.material}}</b></div></div>
    <button v-if="cur.p.has_content" type="button" class="btn s o descbtn" @click="openDesc">Xem mô tả sản phẩm</button>
    <div class="lbl">Màu sắc: {{cur.p.colors[cur.ci].name}}</div>
-   <div class="cols"><button v-for="(c,j) in cur.p.colors" :key="c.name" :class="{on:j==cur.ci}" @click="cur.ci=j"><i :style="{background:c.hex}"></i>{{c.name}}</button></div>
+   <div class="cols"><button v-for="(c,j) in cur.p.colors" :key="c.name" :class="{on:j==cur.ci}" @click="cur.ci=j;cur.gi=0"><i :style="{background:c.hex}"></i>{{c.name}}</button></div>
    <div class="lbl" v-if="!cur.p.price_contact">Số lượng</div>
    <div class="qty" v-if="!cur.p.price_contact"><button :disabled="cur.q<=1" @click="cur.q=Math.max(1,cur.q-1)" aria-label="Giảm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg></button><span>{{cur.q}}</span><button :disabled="cur.q>=99" @click="cur.q=Math.min(99,cur.q+1)" aria-label="Tăng"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button></div>
    <p v-if="oos(cur.p)" class="res">Sản phẩm này đã hết hàng, vui lòng chọn sản phẩm khác</p>
@@ -263,7 +269,24 @@ function setColor(o,j){   // đổi màu ngay trong giỏ; trùng với dòng c�
 }
 function chq(o,d){const r=cart.value.find(x=>x.id==o.id&&x.ci==o.ci);r.q=Math.max(1,Math.min(99,r.q+d));save()}
 function rm(o){cart.value=cart.value.filter(x=>!(x.id==o.id&&x.ci==o.ci));save()}
-const openP=p=>{cur.value={p,ci:0,q:1};pd.value.showModal()}
+// GAL-BEGIN
+const imgsOf=o=>Array.isArray(o&&o.images)&&o.images.length?o.images:(o&&o.image_url?[o.image_url]:[])   // dữ liệu cũ chỉ có 1 ảnh thì coi là ảnh đầu tiên
+const galOf=(p,ci)=>{const c=imgsOf(p.colors[ci]);return c.length?c:imgsOf(p)}   // màu phụ chưa có ảnh riêng thì dùng ảnh của sản phẩm
+const wrapIdx=(i,n)=>((i%n)+n)%n
+// GAL-END
+const thumbsEl=ref(null)
+const gal=computed(()=>cur.value?galOf(cur.value.p,cur.value.ci):[])
+const gIdx=computed(()=>cur.value&&gal.value.length?Math.min(cur.value.gi||0,gal.value.length-1):0)
+const mainHtml=computed(()=>{const c=cur.value;if(!c)return '';return gal.value.length?`<img src="${gal.value[gIdx.value]}" alt="${c.p.name}" decoding="async">`:pic(c.p,c.ci,true)})
+function gGo(i){   // chuyển ảnh (vòng tròn), đồng thời cuộn dải ảnh nhỏ tới ảnh đang chọn
+  const c=cur.value,n=gal.value.length;if(!c||!n)return
+  c.gi=wrapIdx(i,n)
+  nextTick(()=>{const s=thumbsEl.value,b=s&&s.children[c.gi];if(b)s.scrollTo({left:b.offsetLeft-(s.clientWidth-b.clientWidth)/2,behavior:'smooth'})})
+}
+let gx=0   // vuốt ngang trên ảnh lớn để xem ảnh trước/sau
+const gts=e=>{gx=e.touches[0].clientX}
+const gte=e=>{const dx=e.changedTouches[0].clientX-gx;if(Math.abs(dx)>50)gGo(gIdx.value+(dx<0?1:-1))}
+const openP=p=>{cur.value={p,ci:0,q:1,gi:0};pd.value.showModal()}
 DOMPurify.addHook('afterSanitizeAttributes',n=>{if(n.tagName==='A'){n.setAttribute('target','_blank');n.setAttribute('rel','noopener noreferrer')}})
 const fixLists=h=>h.replace(/<ol>((?:(?!<\/ol>)[\s\S])*?)<\/ol>/g,(m,i)=>/data-list="bullet"/.test(i)?'<ul>'+i+'</ul>':m)   // Quill 2 dùng <ol> cho cả danh sách chấm
 const descCache={},dd=ref(null),descHtml=ref(''),descTitle=ref('')
@@ -479,4 +502,18 @@ html body input:not([type=file]):not([type=checkbox]):not([type=radio]):not([typ
 dialog.descd{width:min(720px,calc(100% - 24px))}
 .rich.full{max-height:none;overflow:visible;background:none;padding:0;margin:0}
 .mact a.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;white-space:nowrap}
+/* ---- thư viện nhiều ảnh trong cửa sổ chi tiết ---- */
+.mleft{display:flex;flex-direction:column;min-width:0}
+.mleft .mimg{position:relative;overflow:hidden;flex:1 1 auto}
+.mleft .mimg .mmain{position:absolute;inset:0;display:block}
+.gnav{position:absolute;top:50%;transform:translateY(-50%);width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.92);color:#14222a;display:grid;place-items:center;cursor:pointer;z-index:2;padding:0;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.gprev{left:10px}.gnext{right:10px}
+.gcount{position:absolute;right:12px;bottom:12px;z-index:2;padding:3px 10px;border-radius:99px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;font-weight:600}
+.mthumbs{display:flex;gap:8px;padding:10px 12px;overflow-x:auto;scrollbar-width:none;background:var(--stage)}
+.mthumbs::-webkit-scrollbar{display:none}
+.mthumbs button{flex:none;width:76px;height:56px;padding:0;border:2px solid transparent;border-radius:10px;overflow:hidden;background:none;cursor:pointer;opacity:.65;transition:opacity .2s,border-color .2s}
+.mthumbs button.on{border-color:var(--lc);opacity:1}
+.mthumbs img{width:100%;height:100%;object-fit:cover;display:block}
+@media (hover:hover){.mthumbs button:hover{opacity:1}}
+@media (max-width:860px){.mleft .mimg .mmain{position:absolute}.mthumbs{padding:8px 10px}}
 </style>

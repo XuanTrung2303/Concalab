@@ -1,5 +1,5 @@
 import {db,body,limited} from './_lib.js'
-const PF=['slug','name','category','description','price_vnd','size_mm','material','badge','content_html','image_url','is_active','in_stock','price_contact','sort_order']
+const PF=['slug','name','category','description','price_vnd','size_mm','material','badge','content_html','image_url','images','is_active','in_stock','price_contact','sort_order']
 const PRICE_ST=['paid','shipping','done']   // từ "Đã thanh toán" (khách đã chuyển khoản) trở đi thì phải có giá để tính doanh thu
 const PRICE_EDIT=['accepted','paid','shipping','done']   // các trạng thái được phép sửa giá (đơn Khách đồng ý có giá cũ vẫn sửa được)
 const money=v=>{const n=Number(v);return Number.isInteger(n)&&n>0&&n<=2e9?n:null}
@@ -28,6 +28,7 @@ function socialBase(b){   // kiểm tra phần thông tin nhập tay của đơn
   v.images=im
   return {v}
 }
+const cleanImgs=a=>{const im=Array.isArray(a)?a:[];return im.length<=10&&im.every(u=>typeof u==='string'&&/^https?:\/\//.test(u)&&u.length<=600)?im:null}   // tối đa 10 ảnh, chỉ nhận link http(s)
 const E=(res,m,c=400)=>res.status(c).json({error:m})
 const slug=t=>String(t).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')
 export default async function handler(req,res){
@@ -52,12 +53,14 @@ export default async function handler(req,res){
     switch(a){
       case 'products':{
         const [f,t]=rng(b)
-        let qy=s.from('products').select('*,product_colors(name,hex,image_url,position)',{count:'exact'}).order('created_at',{ascending:false}).order('sort_order')
+        let qy=s.from('products').select('*,product_colors(name,hex,image_url,images,position)',{count:'exact'}).order('created_at',{ascending:false}).order('sort_order')
         if(kw)qy=qy.or(`name.ilike.*${kw}*,category.ilike.*${kw}*,slug.ilike.*${kw}*`)
         r=await qy.range(f,t)
         return res.json({rows:r.data||[],total:r.count||0})}
       case 'product.save':{
         const p=Object.fromEntries(PF.filter(k=>k in b.product).map(k=>[k,b.product[k]]))
+        if('images' in p){const im=cleanImgs(p.images);if(!im)return E(res,'Mỗi sản phẩm tối đa 10 ảnh hợp lệ');p.images=im;p.image_url=im[0]||null}   // ảnh đầu tiên là ảnh bìa
+        if((b.product.colors||[]).some(c=>Array.isArray(c.images)&&cleanImgs(c.images)===null))return E(res,'Mỗi màu tối đa 10 ảnh hợp lệ')   // kiểm tra trước khi ghi để không lưu dở
         if('price_contact' in p){p.price_contact=!!p.price_contact;if(p.price_contact)p.price_vnd=0}   // giá liên hệ thì lưu giá 0
         if(!String(p.name||'').trim()||!Number.isInteger(p.price_vnd)||p.price_vnd<0)return E(res,'Tên và giá (số nguyên ≥ 0) là bắt buộc')
         if(String(p.content_html||'').length>300000)return E(res,'Mô tả chi tiết quá dài')
@@ -68,7 +71,7 @@ export default async function handler(req,res){
         const q=b.product.id?s.from('products').update(p).eq('id',b.product.id):s.from('products').insert(p)
         const {data,error}=await q.select('id').single();if(error)return E(res,error.message)
         await s.from('product_colors').delete().eq('product_id',data.id)
-        const cs=(b.product.colors||[]).filter(c=>c.name).map((c,i)=>({product_id:data.id,name:c.name,hex:c.hex,image_url:c.image_url||null,position:i}))
+        const cs=(b.product.colors||[]).filter(c=>c.name).map((c,i)=>{const im=(Array.isArray(c.images)&&c.images.length?cleanImgs(c.images):null)||(c.image_url?[c.image_url]:[]);return {product_id:data.id,name:c.name,hex:c.hex,images:im,image_url:im[0]||null,position:i}})
         if(cs.length)await s.from('product_colors').insert(cs)
         return res.json({id:data.id})}
       case 'product.delete':await s.from('products').delete().eq('id',b.id);return res.json({})
@@ -103,7 +106,7 @@ export default async function handler(req,res){
       case 'init':{   // gộp me + danh mục + trang sản phẩm đầu tiên vào 1 request
         const [f,t]=rng(b)
         const [pr,ct,pc]=await Promise.all([
-          s.from('products').select('*,product_colors(name,hex,image_url,position)',{count:'exact'}).order('created_at',{ascending:false}).order('sort_order').range(f,t),
+          s.from('products').select('*,product_colors(name,hex,image_url,images,position)',{count:'exact'}).order('created_at',{ascending:false}).order('sort_order').range(f,t),
           s.from('categories').select('*').order('created_at',{ascending:false}).order('sort_order').order('name'),
           s.from('products').select('category')])
         const n={};(pc.data||[]).forEach(x=>{n[x.category]=(n[x.category]||0)+1})

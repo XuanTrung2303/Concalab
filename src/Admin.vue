@@ -186,7 +186,9 @@
  <dialog ref="pf" @click.self="pf.close()"><button class="x" @click="pf.close()" aria-label="Đóng"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   <form class="pform" v-if="f" @submit.prevent="saveP">
    <h3>{{f.id?'Sửa sản phẩm':'Thêm sản phẩm'}}</h3>
-   <label>Ảnh chính (ảnh của màu mặc định, tỉ lệ 4:3)<div class="logo"><img v-if="f.image_url" :src="f.image_url" class="th big" alt=""><input type="file" accept="image/*" @change="pick($event,u=>f.image_url=u,900)"></div></label>
+   <div class="lbl">Ảnh sản phẩm (ảnh đầu tiên là ảnh bìa, tối đa 10 ảnh, bấm vào ảnh để đặt làm ảnh bìa)</div>
+   <div class="gal" v-if="f.images.length"><div class="gthumb" v-for="(u,i) in f.images" :key="u"><img :src="u" alt="" @click="makeCover(f.images,i)" :title="i?'Bấm để đặt làm ảnh bìa':'Ảnh bìa'"><span v-if="i==0" class="cvr">Ảnh bìa</span><button type="button" @click="f.images.splice(i,1)" aria-label="Xóa ảnh">×</button></div></div>
+   <label class="btn s o up">+ Thêm ảnh<input type="file" accept="image/*" multiple style="display:none" @change="addImgs(f.images,$event)"></label>
    <label>Tên<input v-model="f.name" required></label>
    <div class="f2"><label>Danh mục<select v-model="f.category" required><option value="" disabled>Chọn danh mục…</option><option v-for="c in catOpts" :key="c.id" :value="c.name">{{c.name}}{{c.is_visible?'':' (đang ẩn)'}}</option></select></label><div class="pcell"><label>Giá (VNĐ)<input v-model.number="f.price_vnd" type="number" min="0" step="1000" :disabled="f.price_contact" :required="!f.price_contact" :placeholder="f.price_contact?'Giá liên hệ':''"></label><label class="chk"><input type="checkbox" v-model="f.price_contact"> Giá liên hệ (khách liên hệ fanpage hoặc Zalo)</label></div></div>
    <label>Mô tả ngắn (hiện trên thẻ sản phẩm)<textarea v-model="f.description" rows="2"></textarea></label>
@@ -197,14 +199,15 @@
    <div class="lbl">Màu mặc định (dùng ảnh chính ở trên)</div>
    <div class="crow"><input v-model="f.colors[0].name" placeholder="Tên màu mặc định" required><input type="color" v-model="f.colors[0].hex"></div>
    <div class="lbl">Màu sắc phụ (ảnh không bắt buộc, không có ảnh thì dùng ảnh chính)</div>
-   <template v-for="(c,i) in f.colors" :key="i"><div class="crow2" v-if="i>0">
-    <input v-model="c.name" placeholder="Tên màu" required><input type="color" v-model="c.hex">
-    <img v-if="c.image_url" :src="c.image_url" class="th" alt="">
-    <label class="btn s o up">{{c.image_url?'Đổi ảnh':'Chọn ảnh'}}<input type="file" accept="image/*" style="display:none" @change="pick($event,u=>c.image_url=u,900)"></label>
-    <button v-if="c.image_url" type="button" class="btn s o" @click="c.image_url=''">Bỏ ảnh</button>
-    <button type="button" class="btn s o" @click="f.colors.splice(i,1)" aria-label="Xóa màu"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+   <template v-for="(c,i) in f.colors" :key="i"><div class="cblock" v-if="i>0">
+    <div class="crow2">
+     <input v-model="c.name" placeholder="Tên màu" required><input type="color" v-model="c.hex">
+     <label class="btn s o up">+ Thêm ảnh<input type="file" accept="image/*" multiple style="display:none" @change="addImgs(c.images,$event)"></label>
+     <button type="button" class="btn s o" @click="f.colors.splice(i,1)" aria-label="Xóa màu"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="gal" v-if="c.images&&c.images.length"><div class="gthumb" v-for="(u,k) in c.images" :key="u"><img :src="u" alt="" @click="makeCover(c.images,k)" :title="k?'Bấm để đặt làm ảnh bìa của màu này':'Ảnh bìa của màu này'"><span v-if="k==0" class="cvr">Ảnh bìa</span><button type="button" @click="c.images.splice(k,1)" aria-label="Xóa ảnh">×</button></div></div>
    </div></template>
-   <button type="button" class="btn s o" @click="f.colors.push({name:'',hex:'#00bcd4',image_url:''})">+ Thêm màu phụ</button>
+   <button type="button" class="btn s o" @click="f.colors.push({name:'',hex:'#00bcd4',image_url:'',images:[]})">+ Thêm màu phụ</button>
    <label class="chk"><input type="checkbox" v-model="f.in_stock"> Còn hàng (bỏ chọn khi đã hết hàng)</label>
    <label class="chk"><input type="checkbox" v-model="f.is_active"> Đang bán (hiển thị ở trang chủ)</label>
    <button class="btn c" :disabled="busy">Lưu sản phẩm</button>
@@ -334,6 +337,13 @@ function loadQuill(){
     return Quill
   })())
 }
+const imgsOf=o=>Array.isArray(o.images)&&o.images.length?[...o.images]:(o.image_url?[o.image_url]:[])   // dữ liệu cũ chỉ có 1 ảnh thì coi là ảnh đầu tiên
+async function addImgs(list,e){   // chọn nhiều ảnh một lúc, thêm vào danh sách ảnh sản phẩm hoặc ảnh của một màu
+  const files=[...e.target.files];e.target.value=''
+  for(const file of files){if(list.length>=10){toast('Tối đa 10 ảnh');break}
+    await run(async()=>{list.push(await uploadImg(file,900))})}
+}
+const makeCover=(list,i)=>{if(i>0)list.unshift(list.splice(i,1)[0])}
 async function uploadImg(file,max){
   const img=await createImageBitmap(file),k=Math.min(1,max/Math.max(img.width,img.height))
   const c=document.createElement('canvas');c.width=img.width*k;c.height=img.height*k;c.getContext('2d').drawImage(img,0,0,c.width,c.height)
@@ -523,8 +533,8 @@ const nm=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/�
 const catsShown=computed(()=>{const k=nm(search.categories.trim());return k?cats.value.filter(c=>nm(c.name).includes(k)):cats.value})
 function goPg(k,n){n=Math.max(1,Math.min(n,pages(k)));if(n===pg[k])return;pg[k]=n;load(k,n);window.scrollTo({top:0,behavior:'smooth'})}
 async function go(t){tab.value=t;if(!tok.value)return;if(L[t])load(t,pg[t]);if(t=='categories')loadCats();if(t=='overview')loadStats()}
-function edit(p){f.value=p?{...p,colors:[...p.product_colors].sort((a,b)=>a.position-b.position).map(c=>({name:c.name,hex:c.hex,image_url:c.image_url||''}))}:{name:'',category:'',description:'',price_vnd:0,size_mm:'',material:'PLA',badge:'',image_url:'',is_active:true,in_stock:true,price_contact:false,sort_order:total.products+1,colors:[{name:'Xanh cyan',hex:'#00bcd4',image_url:''}]};if(!f.value.colors.length)f.value.colors.push({name:'',hex:'#00bcd4',image_url:''});pf.value.showModal();mountEditor(f.value.content_html)}
-const saveP=()=>run(async()=>{syncContent();if(f.value.price_contact)f.value.price_vnd=0;const isNew=!f.value.id;await api('product.save',{product:f.value});pf.value.close();toast('Đã lưu sản phẩm');cache.clear();if(isNew){pg.products=1;search.products=''}go('products')})   // sản phẩm mới nằm ở trang 1
+function edit(p){f.value=p?{...p,images:imgsOf(p),colors:[...p.product_colors].sort((a,b)=>a.position-b.position).map(c=>({name:c.name,hex:c.hex,image_url:c.image_url||'',images:imgsOf(c)}))}:{name:'',category:'',description:'',price_vnd:0,size_mm:'',material:'PLA',badge:'',image_url:'',images:[],is_active:true,in_stock:true,price_contact:false,sort_order:total.products+1,colors:[{name:'Xanh cyan',hex:'#00bcd4',image_url:'',images:[]}]};if(!f.value.colors.length)f.value.colors.push({name:'',hex:'#00bcd4',image_url:'',images:[]});pf.value.showModal();mountEditor(f.value.content_html)}
+const saveP=()=>run(async()=>{syncContent();if(f.value.price_contact)f.value.price_vnd=0;f.value.image_url=(f.value.images&&f.value.images[0])||'';f.value.colors.forEach(c=>{c.image_url=(c.images&&c.images[0])||''});const isNew=!f.value.id;await api('product.save',{product:f.value});pf.value.close();toast('Đã lưu sản phẩm');cache.clear();if(isNew){pg.products=1;search.products=''}go('products')})   // sản phẩm mới nằm ở trang 1
 const doDel=()=>run(async()=>{await api('product.delete',{id:del.value.id});dd.value.close();toast('Đã xóa');cache.clear();go('products')})
 const LOCK={order:['done','cancelled'],quote:['done','rejected']}   // trạng thái cuối: khóa đơn
 const isLocked=(k,o)=>LOCK[k].includes(o.status)
@@ -725,4 +735,10 @@ select.st option{background:var(--stage);font-weight:600}
 .stab tr.sub td:first-child{padding-left:26px;white-space:nowrap}
 .stab tr.sub:last-of-type td,.stab tr.sub+tr.tot td{border-top:0}
 .stab .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px}
+.gal{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0}
+.gthumb{position:relative;width:86px;height:66px}
+.gthumb img{width:100%;height:100%;object-fit:cover;border-radius:12px;display:block;cursor:pointer;border:2px solid var(--bd)}
+.gthumb .cvr{position:absolute;left:4px;bottom:4px;padding:1px 7px;border-radius:99px;background:var(--lc);color:#fff;font-size:11px;font-weight:700;pointer-events:none}
+.gthumb button{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;border:0;background:#d93b3b;color:#fff;font-size:15px;line-height:1;cursor:pointer;padding:0}
+.cblock{display:grid;gap:8px;padding:10px;border-radius:14px;background:var(--row)}
 </style>
