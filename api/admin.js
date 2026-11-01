@@ -1,5 +1,5 @@
 import {db,body,limited} from './_lib.js'
-const PF=['slug','name','category','description','price_vnd','size_mm','material','badge','content_html','image_url','images','is_active','in_stock','price_contact','sort_order']
+const PF=['slug','name','category','description','price_vnd','size_mm','material','badge','content_html','image_url','images','is_active','in_stock','price_contact','is_featured','sort_order']
 const PRICE_ST=['paid','shipping','done']   // từ "Đã thanh toán" (khách đã chuyển khoản) trở đi thì phải có giá để tính doanh thu
 const PRICE_EDIT=['accepted','paid','shipping','done']   // các trạng thái được phép sửa giá (đơn Khách đồng ý có giá cũ vẫn sửa được)
 const money=v=>{const n=Number(v);return Number.isInteger(n)&&n>0&&n<=2e9?n:null}
@@ -61,6 +61,7 @@ export default async function handler(req,res){
         const p=Object.fromEntries(PF.filter(k=>k in b.product).map(k=>[k,b.product[k]]))
         if('images' in p){const im=cleanImgs(p.images);if(!im)return E(res,'Mỗi sản phẩm tối đa 10 ảnh hợp lệ');p.images=im;p.image_url=im[0]||null}   // ảnh đầu tiên là ảnh bìa
         if((b.product.colors||[]).some(c=>Array.isArray(c.images)&&cleanImgs(c.images)===null))return E(res,'Mỗi màu tối đa 10 ảnh hợp lệ')   // kiểm tra trước khi ghi để không lưu dở
+        if('is_featured' in p)p.is_featured=!!p.is_featured
         if('price_contact' in p){p.price_contact=!!p.price_contact;if(p.price_contact)p.price_vnd=0}   // giá liên hệ thì lưu giá 0
         if(!String(p.name||'').trim()||!Number.isInteger(p.price_vnd)||p.price_vnd<0)return E(res,'Tên và giá (số nguyên ≥ 0) là bắt buộc')
         if(String(p.content_html||'').length>300000)return E(res,'Mô tả chi tiết quá dài')

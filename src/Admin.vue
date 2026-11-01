@@ -64,7 +64,7 @@
    <div class="grid">
     <div class="card pcard" v-for="p in products" :key="p.id">
      <img v-if="p.image_url" :src="p.image_url" class="pimg2" alt="" loading="lazy" decoding="async"><div v-else class="pimg2 ph">3D</div>
-     <div class="gr"><b>{{p.name}}</b><small>{{p.category}} · {{p.price_contact?'Giá liên hệ':vnd(p.price_vnd)}} · {{p.is_active?'Đang bán':'Đã ẩn'}}{{p.in_stock===false?' · Hết hàng':''}}</small></div>
+     <div class="gr"><b>{{p.name}}<svg v-if="p.is_featured" class="fstar" viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-label="Sản phẩm nổi bật"><title>Sản phẩm nổi bật</title><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z"/></svg></b><small>{{p.category}} · {{p.price_contact?'Giá liên hệ':vnd(p.price_vnd)}} · {{p.is_active?'Đang bán':'Đã ẩn'}}{{p.in_stock===false?' · Hết hàng':''}}</small></div>
      <div class="acts"><button class="btn s b-edit" @click="edit(p)">Sửa</button><button class="btn s b-del" @click="del=p;dd.showModal()">Xóa</button></div>
     </div>
    </div>
@@ -208,6 +208,7 @@
     <div class="gal" v-if="c.images&&c.images.length"><div class="gthumb" v-for="(u,k) in c.images" :key="u"><img :src="u" alt="" @click="makeCover(c.images,k)" :title="k?'Bấm để đặt làm ảnh bìa của màu này':'Ảnh bìa của màu này'"><span v-if="k==0" class="cvr">Ảnh bìa</span><button type="button" @click="c.images.splice(k,1)" aria-label="Xóa ảnh">×</button></div></div>
    </div></template>
    <button type="button" class="btn s o" @click="f.colors.push({name:'',hex:'#00bcd4',image_url:'',images:[]})">+ Thêm màu phụ</button>
+   <label class="chk star"><input type="checkbox" v-model="f.is_featured"><svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z"/></svg> Sản phẩm nổi bật (xếp lên đầu tiên ở mục "Tất cả" trên trang chủ)</label>
    <label class="chk"><input type="checkbox" v-model="f.in_stock"> Còn hàng (bỏ chọn khi đã hết hàng)</label>
    <label class="chk"><input type="checkbox" v-model="f.is_active"> Đang bán (hiển thị ở trang chủ)</label>
    <button class="btn c" :disabled="busy">Lưu sản phẩm</button>
@@ -533,7 +534,7 @@ const nm=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/�
 const catsShown=computed(()=>{const k=nm(search.categories.trim());return k?cats.value.filter(c=>nm(c.name).includes(k)):cats.value})
 function goPg(k,n){n=Math.max(1,Math.min(n,pages(k)));if(n===pg[k])return;pg[k]=n;load(k,n);window.scrollTo({top:0,behavior:'smooth'})}
 async function go(t){tab.value=t;if(!tok.value)return;if(L[t])load(t,pg[t]);if(t=='categories')loadCats();if(t=='overview')loadStats()}
-function edit(p){f.value=p?{...p,images:imgsOf(p),colors:[...p.product_colors].sort((a,b)=>a.position-b.position).map(c=>({name:c.name,hex:c.hex,image_url:c.image_url||'',images:imgsOf(c)}))}:{name:'',category:'',description:'',price_vnd:0,size_mm:'',material:'PLA',badge:'',image_url:'',images:[],is_active:true,in_stock:true,price_contact:false,sort_order:total.products+1,colors:[{name:'Xanh cyan',hex:'#00bcd4',image_url:'',images:[]}]};if(!f.value.colors.length)f.value.colors.push({name:'',hex:'#00bcd4',image_url:'',images:[]});pf.value.showModal();mountEditor(f.value.content_html)}
+function edit(p){f.value=p?{...p,images:imgsOf(p),colors:[...p.product_colors].sort((a,b)=>a.position-b.position).map(c=>({name:c.name,hex:c.hex,image_url:c.image_url||'',images:imgsOf(c)}))}:{name:'',category:'',description:'',price_vnd:0,size_mm:'',material:'PLA',badge:'',image_url:'',images:[],is_active:true,in_stock:true,price_contact:false,is_featured:false,sort_order:total.products+1,colors:[{name:'Xanh cyan',hex:'#00bcd4',image_url:'',images:[]}]};if(!f.value.colors.length)f.value.colors.push({name:'',hex:'#00bcd4',image_url:'',images:[]});pf.value.showModal();mountEditor(f.value.content_html)}
 const saveP=()=>run(async()=>{syncContent();if(f.value.price_contact)f.value.price_vnd=0;f.value.image_url=(f.value.images&&f.value.images[0])||'';f.value.colors.forEach(c=>{c.image_url=(c.images&&c.images[0])||''});const isNew=!f.value.id;await api('product.save',{product:f.value});pf.value.close();toast('Đã lưu sản phẩm');cache.clear();if(isNew){pg.products=1;search.products=''}go('products')})   // sản phẩm mới nằm ở trang 1
 const doDel=()=>run(async()=>{await api('product.delete',{id:del.value.id});dd.value.close();toast('Đã xóa');cache.clear();go('products')})
 const LOCK={order:['done','cancelled'],quote:['done','rejected']}   // trạng thái cuối: khóa đơn
@@ -741,4 +742,7 @@ select.st option{background:var(--stage);font-weight:600}
 .gthumb .cvr{position:absolute;left:4px;bottom:4px;padding:1px 7px;border-radius:99px;background:var(--lc);color:#fff;font-size:11px;font-weight:700;pointer-events:none}
 .gthumb button{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;border:0;background:#d93b3b;color:#fff;font-size:15px;line-height:1;cursor:pointer;padding:0}
 .cblock{display:grid;gap:8px;padding:10px;border-radius:14px;background:var(--row)}
+.chk.star svg{color:#f59e0b;fill:none;flex:none}
+.chk.star input:checked+svg{fill:#f59e0b}
+.fstar{color:#f59e0b;margin-left:6px;vertical-align:-2px}
 </style>
