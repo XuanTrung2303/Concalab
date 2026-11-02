@@ -216,7 +216,13 @@ const products=ref([]),loading=ref(true),loadErr=ref(''),cat=ref('Tất cả'),c
 const pay=ref(null),fm=reactive({n:'',p:'',g:'',region:'danang',province:'',ward:'',street:''}),busy=ref(false),orderErr=ref(''),quoteMsg=ref(''),pd=ref(null),cd=ref(null),toastMsg=ref(''),toastOn=ref(false)
 let tt,lastText=''
 const cats=computed(()=>['Tất cả',...new Set([...products.value].sort((a,b)=>(a.sort_order??0)-(b.sort_order??0)).map(p=>p.category))])   // sản phẩm hiện mới nhất trước, còn nút danh mục giữ thứ tự ổn định
-const shown=computed(()=>products.value.filter(p=>cat.value=='Tất cả'||p.category==cat.value))
+// SHUFFLE-BEGIN
+const fnv=t=>{let h=2166136261;for(let i=0;i<t.length;i++){h^=t.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}   // băm ổn định: cùng mã sản phẩm + cùng "hạt giống" => cùng vị trí
+const seed=(()=>{try{let s=sessionStorage.getItem('cc-seed');if(!s){s=String(Math.random()).slice(2);sessionStorage.setItem('cc-seed',s)}return s}catch{return String(Math.random()).slice(2)}})()   // mỗi lượt truy cập một thứ tự mới
+// mục "Tất cả": sản phẩm đánh sao lên đầu, phần còn lại xáo trộn ngẫu nhiên (không theo ngày thêm)
+const mixAll=(list,sd)=>[...list].sort((a,b)=>(b.is_featured?1:0)-(a.is_featured?1:0)||fnv(sd+a.id)-fnv(sd+b.id))
+// SHUFFLE-END
+const shown=computed(()=>cat.value=='Tất cả'?mixAll(products.value,seed):products.value.filter(p=>p.category==cat.value))
 const cs=ref(0)   // vị trí danh mục đầu tiên đang hiện; mỗi lần chỉ hiện 4 danh mục
 const chipMove=d=>{cs.value=Math.max(0,Math.min(cs.value+d*4,cats.value.length-4))}
 watch(cats,()=>{cs.value=Math.max(0,Math.min(cs.value,cats.value.length-4))})
