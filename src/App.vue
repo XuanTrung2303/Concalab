@@ -37,12 +37,12 @@
   <div class="shophead">
    <div><h2>Sản phẩm có sẵn</h2><p class="sub">Bấm vào ảnh để xem chi tiết, chọn màu và đặt mua. Giao nhanh, không cần chờ in.</p></div>
    <div class="chipbar">
-    <button class="cnav" :disabled="cs<=0" @click="chipMove(-1)" aria-label="Danh mục trước"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+    <button class="cnav" :disabled="!cl" @click="chipMove(-1)" aria-label="Danh mục trước"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
     <div class="chipcol">
-     <div class="chipwin" ref="chipWinEl" @scroll.passive="chipThumb"><div class="chips" :style="{'--i':cs}"><button v-for="(c,i) in cats" :key="c" :class="{on:c==cat}" :tabindex="i>=cs&&i<cs+4?0:-1" @click="cat=c">{{c}}</button></div></div>
+     <div class="chipwin" ref="chipWinEl" @scroll.passive="chipThumb" @mousedown="cDown"><div class="chips"><button v-for="c in cats" :key="c" :class="{on:c==cat}" @click="chipPick(c)">{{c}}</button></div></div>
      <div class="ctrack" v-if="thumb.w<99" aria-hidden="true"><i class="cthumb" :style="{width:thumb.w+'%',left:thumb.l+'%'}"></i></div>
     </div>
-    <button class="cnav" :disabled="cs>=cats.length-4" @click="chipMove(1)" aria-label="Danh mục sau"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+    <button class="cnav" :disabled="!cr" @click="chipMove(1)" aria-label="Danh mục sau"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
    </div>
   </div>
   <p v-if="loading" class="empty">Đang tải sản phẩm…</p>
@@ -223,20 +223,28 @@ const seed=(()=>{try{let s=sessionStorage.getItem('cc-seed');if(!s){s=String(Mat
 const mixAll=(list,sd)=>[...list].sort((a,b)=>(b.is_featured?1:0)-(a.is_featured?1:0)||fnv(sd+a.id)-fnv(sd+b.id))
 // SHUFFLE-END
 const shown=computed(()=>cat.value=='Tất cả'?mixAll(products.value,seed):products.value.filter(p=>p.category==cat.value))
-const cs=ref(0)   // vị trí danh mục đầu tiên đang hiện; mỗi lần chỉ hiện 4 danh mục
-const chipMove=d=>{cs.value=Math.max(0,Math.min(cs.value+d*4,cats.value.length-4))}
-watch(cats,()=>{cs.value=Math.max(0,Math.min(cs.value,cats.value.length-4))})
-// ---- thanh trượt nhỏ dưới danh mục: cho khách biết còn danh mục để vuốt/bấm tiếp ----
-const chipWinEl=ref(null),thumb=ref({w:100,l:0})
+const chipWinEl=ref(null),thumb=ref({w:100,l:0}),cl=ref(false),cr=ref(false)
 // THUMB-BEGIN
-function thumbOf(o){   // độ dài (w) và vị trí (l) của thanh chỉ báo, đơn vị %
-  if(o.mobile){const max=o.sw-o.cw;if(max<=2)return {w:100,l:0};const w=Math.max(14,o.cw/o.sw*100);return {w,l:Math.min(1,Math.max(0,o.sl/max))*(100-w)}}
-  if(o.n<=4)return {w:100,l:0}
-  const w=4/o.n*100;return {w,l:Math.min(1,o.cs/(o.n-4))*(100-w)}
+function thumbOf(o){   // độ dài (w) và vị trí (l) của thanh chỉ báo (%) theo vị trí cuộn của dải danh mục
+  const max=o.sw-o.cw;if(max<=2)return {w:100,l:0}
+  const w=Math.max(14,o.cw/o.sw*100);return {w,l:Math.min(1,Math.max(0,o.sl/max))*(100-w)}
 }
 // THUMB-END
-function chipThumb(){const e=chipWinEl.value;thumb.value=thumbOf({mobile:matchMedia('(max-width:600px)').matches,n:cats.value.length,cs:cs.value,sl:e?e.scrollLeft:0,sw:e?e.scrollWidth:0,cw:e?e.clientWidth:0})}
-watch(()=>[cs.value,cats.value.length],()=>nextTick(chipThumb))
+function chipThumb(){const e=chipWinEl.value;if(!e)return;thumb.value=thumbOf({sl:e.scrollLeft,sw:e.scrollWidth,cw:e.clientWidth});cl.value=e.scrollLeft>2;cr.value=e.scrollLeft+e.clientWidth<e.scrollWidth-2}
+const chipStep=()=>{const b=chipWinEl.value&&chipWinEl.value.querySelector('button');return b?b.offsetWidth+8:100}
+function chipMove(d){const e=chipWinEl.value;if(!e)return;const s=chipStep();e.scrollBy({left:d*Math.max(s,Math.floor((e.clientWidth+8)/s)*s),behavior:'smooth'})}   // bấm mũi tên: trượt một lượt (tối đa 4 danh mục)
+// kéo bằng chuột trên máy tính (điện thoại vuốt ngang được sẵn)
+let drag=null,dragged=false
+function cDown(e){if(e.button!==0)return;drag={x:e.clientX,l:chipWinEl.value.scrollLeft,moved:false};window.addEventListener('mousemove',cMove);window.addEventListener('mouseup',cUp)}
+function cMove(e){if(!drag)return;const el=chipWinEl.value,dx=e.clientX-drag.x;if(!drag.moved&&Math.abs(dx)>4){drag.moved=true;el.classList.add('drag')}if(drag.moved)el.scrollLeft=drag.l-dx}
+function cUp(){
+  window.removeEventListener('mousemove',cMove);window.removeEventListener('mouseup',cUp)
+  const el=chipWinEl.value
+  if(drag&&drag.moved){dragged=true;setTimeout(()=>{dragged=false},60);el.classList.remove('drag');const s=chipStep();el.scrollTo({left:Math.round(el.scrollLeft/s)*s,behavior:'smooth'})}   // thả ra thì tự căn về danh mục gần nhất
+  drag=null
+}
+const chipPick=c=>{if(!dragged)cat.value=c}   // kéo xong rồi thả chuột không bị tính là bấm chọn danh mục
+watch(()=>cats.value.length,()=>nextTick(chipThumb))
 const PER=8,page=ref(1)   // 8 sản phẩm mỗi trang, áp dụng cho "Tất cả" và từng danh mục
 const pageCount=computed(()=>Math.max(1,Math.ceil(shown.value.length/PER)))
 const paged=computed(()=>{const c=Math.min(page.value,pageCount.value);return shown.value.slice((c-1)*PER,c*PER)})
@@ -422,14 +430,8 @@ onMounted(async()=>{
 .pgn button{min-width:42px;height:42px;padding:0 14px;border-radius:999px;border:1px solid var(--bd);background:transparent;color:var(--ink);font:600 15px Outfit,system-ui,sans-serif;cursor:pointer}
 .pgn button.on{background:var(--ink);color:var(--stage);border-color:var(--ink)}
 .pgn button:disabled{opacity:.4;cursor:default}
-.chipbar{display:flex;align-items:center;gap:8px;min-width:0;max-width:100%}
-.chipcol{flex:0 1 470px;width:min(100%,470px);min-width:0;display:grid;gap:7px}
-.chipwin{width:100%;min-width:0;overflow:hidden;padding:3px 0;margin:-3px 0}
 .ctrack{position:relative;height:4px;border-radius:99px;background:var(--bd)}
 .cthumb{position:absolute;top:0;bottom:0;border-radius:99px;background:var(--lc);transition:left .45s cubic-bezier(.4,0,.2,1),width .3s}
-.chipbar{align-items:flex-start}
-.chipbar .chips{display:flex;flex-wrap:nowrap;gap:8px;width:100%;transition:transform .45s cubic-bezier(.4,0,.2,1);transform:translateX(calc(var(--i,0) * -1 * (25% + 2px)))}
-.chipbar .chips button{flex:0 0 calc(25% - 6px);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:6px;padding-right:6px}
 .cnav{flex:none;width:38px;height:38px;border-radius:50%;border:1px solid var(--bd);background:transparent;color:var(--ink);font:600 20px/1 Outfit,system-ui,sans-serif;cursor:pointer;display:grid;place-items:center;padding:0 0 3px}
 .cnav:disabled{opacity:.3;cursor:default}
 .cswatch{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
@@ -461,17 +463,6 @@ onMounted(async()=>{
 }
 /* iPhone tự phóng to trang khi chạm vào ô nhập có chữ nhỏ hơn 16px, làm lệch giao diện */
 @media (pointer:coarse){html body input,html body select,html body textarea{font-size:16px!important}}
-/* điện thoại: danh mục là dải cuộn ngang (vuốt), hiện đủ tên, không cắt chữ */
-@media (max-width:600px){
- .chipbar{width:100%}
- .chipbar .cnav{display:none}
- .chipcol{flex:1 1 100%;width:100%}
- .cthumb{transition:none}
- .chipwin{width:100%;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
- .chipwin::-webkit-scrollbar{display:none}
- .chipbar .chips{width:max-content;transform:none!important;transition:none}
- .chipbar .chips button{flex:0 0 auto;overflow:visible;text-overflow:clip;padding-left:14px;padding-right:14px}
-}
 /* ---- điện thoại: các lỗi còn sót ---- */
 html{-webkit-tap-highlight-color:transparent}
 @media (hover:none){
@@ -522,4 +513,22 @@ dialog.descd{width:min(720px,calc(100% - 24px))}
 .mthumbs img{width:100%;height:100%;object-fit:cover;display:block}
 @media (hover:hover){.mthumbs button:hover{opacity:1}}
 @media (max-width:860px){.mleft .mimg .mmain{position:absolute}.mthumbs{padding:8px 10px}}
+/* ---- thanh danh mục: bấm mũi tên hoặc kéo/vuốt ngang đều được ----
+   Vị trí cố định: độ rộng thanh không còn phụ thuộc số danh mục nên không bị nhảy xuống dòng khi thêm danh mục */
+.shophead>div:first-child{flex:1 1 280px;min-width:0}
+.chipbar{display:flex;align-items:flex-start;gap:8px;flex:0 1 520px;min-width:0;max-width:100%}
+.chipcol{flex:1 1 0;min-width:0;display:grid;grid-template-columns:minmax(0,1fr);gap:7px}
+.chipwin{container-type:inline-size;min-width:0;overflow-x:auto;overflow-y:hidden;padding:3px 0;margin:-3px 0;scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory;cursor:grab}
+.chipwin::-webkit-scrollbar{display:none}
+.chipwin.drag{scroll-snap-type:none;cursor:grabbing;user-select:none}
+.chipbar .chips{display:flex;gap:8px;width:max-content;min-width:100%}
+.chipbar .chips button{flex:0 0 auto;min-width:92px;padding-left:14px;padding-right:14px;white-space:nowrap;scroll-snap-align:start;user-select:none;-webkit-user-drag:none}
+@supports (width:1cqw){.chipbar .chips button{flex:0 0 calc((100cqw - 24px)/4);min-width:0;overflow:hidden;text-overflow:ellipsis;padding-left:6px;padding-right:6px}}
+.cthumb{transition:width .2s}
+@media (max-width:600px){   /* điện thoại: dải vuốt ngang, hiện đủ tên danh mục, không cắt chữ */
+ .chipbar{flex:1 1 100%}
+ .chipbar .cnav{display:none}
+ .chipwin{scroll-snap-type:none;cursor:auto}
+ .chipbar .chips button{flex:0 0 auto;min-width:0;overflow:visible;text-overflow:clip;padding-left:14px;padding-right:14px}
+}
 </style>
