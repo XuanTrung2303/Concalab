@@ -305,7 +305,8 @@ const cats=ref([]),cn=ref(''),cid=ref(null),cdel=ref(null),cf=ref(null),cdd=ref(
 const loadCats=async()=>{try{cats.value=await api('categories')}catch{}}
 const catOpts=computed(()=>cats.value.filter(c=>c.is_visible||(f.value&&c.name===f.value.category)))   // danh mục ẩn không hiện trong ô chọn (trừ danh mục sản phẩm đang dùng)
 const editCat=c=>{cid.value=c?c.id:null;cn.value=c?c.name:'';cf.value.showModal()}
-const saveCat=()=>run(async()=>{await api('category.save',{id:cid.value,name:cn.value});cf.value.close();cache.clear();toast('Đã lưu danh mục');await loadCats()})
+const bumpStore=()=>{try{localStorage.setItem('cc-bust',String(Date.now()));localStorage.removeItem('cc-products')}catch{}}   // báo trang chủ tải lại danh sách sản phẩm ngay
+const saveCat=()=>run(async()=>{await api('category.save',{id:cid.value,name:cn.value});cf.value.close();cache.clear();bumpStore();toast('Đã lưu danh mục');await loadCats()})
 const toggleCat=c=>run(async()=>{await api('category.toggle',{id:c.id,is_visible:!c.is_visible});c.is_visible=!c.is_visible;toast(c.is_visible?'Đã hiện danh mục':'Đã ẩn danh mục')})
 const doDelCat=()=>run(async()=>{await api('category.delete',{id:cdel.value.id});cdd.value.close();toast('Đã xóa danh mục');await loadCats()})
 const vo=ref(null),vd=ref(null)
@@ -535,8 +536,8 @@ const catsShown=computed(()=>{const k=nm(search.categories.trim());return k?cats
 function goPg(k,n){n=Math.max(1,Math.min(n,pages(k)));if(n===pg[k])return;pg[k]=n;load(k,n);window.scrollTo({top:0,behavior:'smooth'})}
 async function go(t){tab.value=t;if(!tok.value)return;if(L[t])load(t,pg[t]);if(t=='categories')loadCats();if(t=='overview')loadStats()}
 function edit(p){f.value=p?{...p,images:imgsOf(p),colors:[...p.product_colors].sort((a,b)=>a.position-b.position).map(c=>({name:c.name,hex:c.hex,image_url:c.image_url||'',images:imgsOf(c)}))}:{name:'',category:'',description:'',price_vnd:0,size_mm:'',material:'PLA',badge:'',image_url:'',images:[],is_active:true,in_stock:true,price_contact:false,is_featured:false,sort_order:total.products+1,colors:[{name:'Xanh cyan',hex:'#00bcd4',image_url:'',images:[]}]};if(!f.value.colors.length)f.value.colors.push({name:'',hex:'#00bcd4',image_url:'',images:[]});pf.value.showModal();mountEditor(f.value.content_html)}
-const saveP=()=>run(async()=>{syncContent();if(f.value.price_contact)f.value.price_vnd=0;f.value.image_url=(f.value.images&&f.value.images[0])||'';f.value.colors.forEach(c=>{c.image_url=(c.images&&c.images[0])||''});const isNew=!f.value.id;await api('product.save',{product:f.value});pf.value.close();toast('Đã lưu sản phẩm');cache.clear();if(isNew){pg.products=1;search.products=''}go('products')})   // sản phẩm mới nằm ở trang 1
-const doDel=()=>run(async()=>{await api('product.delete',{id:del.value.id});dd.value.close();toast('Đã xóa');cache.clear();go('products')})
+const saveP=()=>run(async()=>{syncContent();if(f.value.price_contact)f.value.price_vnd=0;f.value.image_url=(f.value.images&&f.value.images[0])||'';f.value.colors.forEach(c=>{c.image_url=(c.images&&c.images[0])||''});const isNew=!f.value.id;await api('product.save',{product:f.value});pf.value.close();toast('Đã lưu sản phẩm');cache.clear();bumpStore();if(isNew){pg.products=1;search.products=''}go('products')})   // sản phẩm mới nằm ở trang 1
+const doDel=()=>run(async()=>{await api('product.delete',{id:del.value.id});dd.value.close();toast('Đã xóa');cache.clear();bumpStore();go('products')})
 const LOCK={order:['done','cancelled'],quote:['done','rejected']}   // trạng thái cuối: khóa đơn
 const isLocked=(k,o)=>LOCK[k].includes(o.status)
 async function setS(a,o,status,ev){

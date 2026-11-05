@@ -98,7 +98,7 @@
  </div>
 
  <div class="band"><div><h2>Có ý tưởng rồi?</h2><p>Gửi cho Con Cá Lab, biến nó thành sản phẩm thật.</p></div><a class="btn w" href="#custom">Báo giá ngay</a></div>
- <div class="ct" id="lien-he"><span class="lg fl" role="img" aria-label="Con Cá Lab"><i class="n"></i><i class="c"></i></span>Zalo 09xx xxx xxx · hello@concalab.vn · Hội An, Đà Nẵng<br>© 2026 · In 3D từng lớp, làm nên ý tưởng</div>
+ <div class="ct" id="lien-he"><span class="lg fl" role="img" aria-label="Con Cá Lab"><i class="n"></i><i class="c"></i></span>Zalo 09xx xxx xxx · concalab@gmail.com · Đống Đa, Hải Châu, Đà Nẵng<br>© 2026 · In 3D từng lớp, làm nên ý tưởng</div>
 </div>
 
 <dialog ref="pd" aria-label="Chi tiết sản phẩm" @click.self="pd.close()">
@@ -208,6 +208,7 @@
 import {ref,reactive,computed,watch,nextTick,onMounted} from 'vue'
 import {art} from './art.js'
 import DOMPurify from 'dompurify'
+const bust=(()=>{try{return localStorage.getItem('cc-bust')||''}catch{return ''}})()   // admin vừa sửa dữ liệu thì máy này bỏ qua bộ nhớ đệm để thấy ngay
 const FB_URL=import.meta.env.VITE_FANPAGE_URL||'',ZALO_URL=import.meta.env.VITE_ZALO_URL||''   // liên kết nút "Liên hệ" cho sản phẩm giá liên hệ
 const needLink=(e,u)=>{if(!u){e.preventDefault();toast('Shop chưa cập nhật liên kết liên hệ, vui lòng thử lại sau')}}
 const ZALO=(/zalo\.me\/(\d+)/.exec(ZALO_URL)||[])[1]||'09xx xxx xxx',BG=['#d6fbf4','#8fe6f2']
@@ -415,7 +416,7 @@ onMounted(async()=>{
   try{cart.value=JSON.parse(localStorage.getItem('cc-cart')||'[]')}catch{}
   let had=false
   try{const c=JSON.parse(localStorage.getItem('cc-products')||'null');if(c&&Array.isArray(c.d)&&c.d.length&&Date.now()-c.t<864e5){products.value=c.d;loading.value=false;had=true}}catch{}   // lần sau vào trang hiện ngay
-  try{const r=await fetch('/api/products');if(!r.ok)throw 0;const d=await r.json();products.value=d;try{localStorage.setItem('cc-products',JSON.stringify({t:Date.now(),d}))}catch{}}
+  try{const r=await fetch('/api/products'+(bust?'?t='+bust:''));if(!r.ok)throw 0;const d=await r.json();products.value=d;try{localStorage.setItem('cc-products',JSON.stringify({t:Date.now(),d}))}catch{}}
   catch{if(!had)loadErr.value='Không tải được sản phẩm, vui lòng tải lại trang.'}
   loading.value=false
 })
