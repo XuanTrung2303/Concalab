@@ -50,7 +50,7 @@
   <div class="pgrid" @touchstart.passive="ts" @touchend.passive="te">
    <article class="pc" :class="{oos:oos(x)}" v-for="x in paged" :key="x.id">
     <button class="pimg" @click="openP(x)" :aria-label="'Xem '+x.name"><span class="badge" v-if="x.badge||oos(x)">{{oos(x)?'Hết hàng':x.badge}}</span><span class="view">Xem chi tiết</span><span style="display:contents" v-html="pic(x,0)"></span></button>
-    <div class="pb"><h3>{{x.name}}</h3><p class="d">{{x.description}}</p>
+    <div class="pb"><h3>{{x.name}}</h3><div class="crate" v-if="x.rating_count>0"><span class="stars sm" :style="{'--p':(x.rating_avg/5*100)+'%'}"></span><b>{{Number(x.rating_avg).toFixed(1)}}</b><small>({{x.rating_count}})</small></div><p class="d">{{x.description}}</p>
      <div class="sw"><i v-for="c in x.colors" :key="c.name" :style="{background:c.hex}" :title="c.name"></i></div>
      <div class="pf"><div class="price">{{x.price_contact?'Liên hệ':vnd(x.price_vnd)}}</div><button v-if="x.price_contact" class="btn s" @click="openP(x)">Liên hệ</button><button v-else class="btn s" @click="addTo(x,0,1)">Thêm giỏ</button></div>
     </div>
@@ -98,7 +98,7 @@
  </div>
 
  <div class="band"><div><h2>Có ý tưởng rồi?</h2><p>Gửi cho Con Cá Lab, biến nó thành sản phẩm thật.</p></div><a class="btn w" href="#custom">Báo giá ngay</a></div>
- <div class="ct" id="lien-he"><span class="lg fl" role="img" aria-label="Con Cá Lab"><i class="n"></i><i class="c"></i></span>Zalo 09xx xxx xxx · concalab@gmail.com · Đống Đa, Hải Châu, Đà Nẵng<br>© 2026 · In 3D từng lớp, làm nên ý tưởng</div>
+ <div class="ct" id="lien-he"><span class="lg fl" role="img" aria-label="Con Cá Lab"><i class="n"></i><i class="c"></i></span>Zalo 09xx xxx xxx · hello@concalab.vn · Hội An, Đà Nẵng<br>© 2026 · In 3D từng lớp, làm nên ý tưởng</div>
 </div>
 
 <dialog ref="pd" aria-label="Chi tiết sản phẩm" @click.self="pd.close()">
@@ -112,7 +112,8 @@
    <div class="mthumbs" ref="thumbsEl" v-if="gal.length>1"><button type="button" v-for="(u,i) in gal" :key="u+i" :class="{on:i==gIdx}" @click="gGo(i)" :aria-label="'Xem ảnh '+(i+1)"><img :src="u" alt="" loading="lazy" decoding="async"></button></div>
   </div>
   <div class="minfo">
-   <span class="tag">{{cur.p.category}}</span><h3>{{cur.p.name}}</h3><p>{{cur.p.description}}</p>
+   <span class="tag">{{cur.p.category}}</span><h3>{{cur.p.name}}</h3>
+   <button type="button" class="mrate" @click="openRList"><span class="stars sm" :style="{'--p':((cur.p.rating_avg||0)/5*100)+'%'}"></span><b v-if="cur.p.rating_count">{{Number(cur.p.rating_avg).toFixed(1)}}</b><span>{{cur.p.rating_count?cur.p.rating_count+' đánh giá':'Chưa có đánh giá'}}</span></button><p>{{cur.p.description}}</p>
    <div class="specs"><div>Kích thước<b>{{cur.p.size_mm}} mm</b></div><div>Vật liệu<b>{{cur.p.material}}</b></div></div>
    <button v-if="cur.p.has_content" type="button" class="btn s o descbtn" @click="openDesc">Xem mô tả sản phẩm</button>
    <div class="lbl">Màu sắc: {{cur.p.colors[cur.ci].name}}</div>
@@ -123,6 +124,7 @@
    <div class="buy" :class="{dim:oos(cur.p)}"><div class="mprice">{{cur.p.price_contact?'Giá liên hệ':vnd(cur.p.price_vnd*cur.q)}}</div>
     <div class="mact" v-if="!cur.p.price_contact"><button class="btn o" @click="addTo(cur.p,cur.ci,cur.q,'Đã thêm vào giỏ')&&pd.close()">Thêm vào giỏ</button><button class="btn c" @click="addTo(cur.p,cur.ci,cur.q,'')&&(pd.close(),openCart())">Mua ngay</button></div>
     <div class="mact" v-else><a class="btn o" :href="FB_URL||'#'" target="_blank" rel="noopener noreferrer" @click="needLink($event,FB_URL)">Liên hệ fanpage</a><a class="btn c" :href="ZALO_URL||'#'" target="_blank" rel="noopener noreferrer" @click="needLink($event,ZALO_URL)">Liên hệ Zalo</a></div></div>
+   <div class="mrev"><button type="button" class="btn o" @click="openRForm"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z"/></svg> Đánh giá sản phẩm</button><button type="button" class="btn o" @click="openRList">Xem đánh giá<span v-if="cur.p.rating_count"> ({{cur.p.rating_count}})</span></button></div>
   </div>
  </div>
 </dialog>
@@ -131,6 +133,41 @@
  <button class="x" @click="dd.close()" aria-label="Đóng"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
  <div class="cd"><h3>{{descTitle}}</h3><div class="rich full" v-html="descHtml"></div></div>
 </dialog>
+
+<dialog ref="rf" class="rfd" aria-label="Đánh giá sản phẩm" @click.self="rf.close()"><button class="x" @click="rf.close()" aria-label="Đóng"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+ <form class="cd" @submit.prevent="rSubmit">
+  <h3>Đánh giá sản phẩm</h3>
+  <p class="sub" style="margin:0;text-align:left">{{cur&&cur.p.name}}</p>
+  <div class="pickrow"><div class="pickwrap"><span class="stars big" :style="{'--p':(shownR/5*100)+'%'}"></span><div class="pickzones" @mouseleave="rHover=0"><button type="button" v-for="k in 10" :key="k" @mouseenter="rHover=k/2" @click="rForm.rating=Math.max(1,k/2)" :aria-label="'Chọn '+(k/2)+' sao'"></button></div></div><b class="rnum">{{shownR?shownR.toFixed(1)+' sao':'Chọn số sao'}}</b></div>
+  <label>Tên của bạn<input v-model="rForm.name" maxlength="60" required autocomplete="name"></label>
+  <label>Nội dung đánh giá<textarea v-model="rForm.content" rows="4" maxlength="1500" required placeholder="Chia sẻ cảm nhận của bạn về sản phẩm…"></textarea></label>
+  <input class="hp" v-model="rForm.hp" tabindex="-1" autocomplete="off" aria-hidden="true" name="website">
+  <div class="rimgbar"><label class="btn s o up">+ Thêm ảnh<input type="file" accept="image/*" multiple style="display:none" @change="rPick"></label><small>Tối đa 5 ảnh</small></div>
+  <div class="rthumbs" v-if="rForm.images.length||rUp"><div class="rth" v-for="(u,i) in rForm.images" :key="u"><img :src="u" alt=""><button type="button" @click="rForm.images.splice(i,1)" aria-label="Xóa ảnh">×</button></div><span v-if="rUp" class="spin"></span></div>
+  <p class="res" v-if="rErr">{{rErr}}</p>
+  <button class="btn c" type="submit" :disabled="rBusy||rUp>0">{{rBusy?'Đang gửi…':'Gửi đánh giá'}}</button>
+ </form></dialog>
+
+<dialog ref="rl" class="rld" aria-label="Đánh giá của khách hàng" @click.self="rl.close()"><button class="x" @click="rl.close()" aria-label="Đóng"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+ <div class="cd">
+  <h3>Đánh giá của khách hàng</h3>
+  <p class="sub" style="margin:0;text-align:left">{{cur&&cur.p.name}}</p>
+  <div class="rsum" v-if="rList.count"><b class="rbig">{{Number(rList.avg).toFixed(1)}}</b><div><span class="stars" :style="{'--p':(rList.avg/5*100)+'%'}"></span><small>{{rList.count}} đánh giá</small></div></div>
+  <p class="empty" v-if="rList.loading&&!rList.rows.length">Đang tải đánh giá…</p>
+  <p class="empty" v-else-if="!rList.rows.length">Chưa có đánh giá nào. Hãy là người đầu tiên đánh giá sản phẩm này!</p>
+  <div class="ritem" v-for="r in rList.rows" :key="r.id">
+   <div class="rhead"><b>{{r.customer_name}}</b><small>{{dmy(r.created_at)}}</small></div>
+   <div class="rrow"><span class="stars sm" :style="{'--p':(r.rating/5*100)+'%'}"></span><b>{{Number(r.rating).toFixed(1)}}</b></div>
+   <p class="rtxt">{{r.content}}</p>
+   <div class="rthumbs" v-if="r.images&&r.images.length"><button type="button" class="rth" v-for="(u,i) in r.images" :key="u" @click="openIv(r.images,i)" :aria-label="'Xem ảnh '+(i+1)"><img :src="u" alt="" loading="lazy" decoding="async"></button></div>
+  </div>
+  <button v-if="rList.rows.length<rList.total" type="button" class="btn o" :disabled="rList.loading" @click="loadReviews(rList.page+1)">{{rList.loading?'Đang tải…':'Xem thêm đánh giá'}}</button>
+  <button type="button" class="btn c" @click="rl.close();openRForm()">Viết đánh giá</button>
+ </div></dialog>
+
+<dialog ref="iv" class="ivd" aria-label="Xem ảnh" @click.self="iv.close()"><button class="x" @click="iv.close()" aria-label="Đóng"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+ <div class="ivbox" v-if="ivList.length" @touchstart.passive="ivts" @touchend.passive="ivte"><img class="ivimg" :src="ivList[ivI]" alt="">
+  <template v-if="ivList.length>1"><button type="button" class="ivnav ivp" @click="ivGo(-1)" aria-label="Ảnh trước"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button><button type="button" class="ivnav ivn" @click="ivGo(1)" aria-label="Ảnh sau"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button><span class="ivc">{{ivI+1}} / {{ivList.length}}</span></template></div></dialog>
 
 <dialog ref="cd" aria-label="Giỏ hàng" @click.self="cd.close()">
  <button class="x" @click="cd.close()" aria-label="Đóng"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
@@ -284,6 +321,53 @@ function setColor(o,j){   // đổi màu ngay trong giỏ; trùng với dòng c�
 }
 function chq(o,d){const r=cart.value.find(x=>x.id==o.id&&x.ci==o.ci);r.q=Math.max(1,Math.min(99,r.q+d));save()}
 function rm(o){cart.value=cart.value.filter(x=>!(x.id==o.id&&x.ci==o.ci));save()}
+// ---- Đánh giá sản phẩm ----
+const rf=ref(null),rl=ref(null),iv=ref(null)
+const rForm=reactive({name:'',content:'',rating:0,images:[],hp:''}),rHover=ref(0),rBusy=ref(false),rUp=ref(0),rErr=ref('')
+const shownR=computed(()=>{const v=rHover.value||rForm.rating;return v?Math.max(1,v):0})   // sao chọn theo bước 0,5, tối thiểu 1
+const rList=reactive({rows:[],total:0,avg:0,count:0,page:1,loading:false});let rBust=0
+const dmy=d=>new Date(d).toLocaleDateString('vi-VN')
+function openRForm(){rErr.value='';Object.assign(rForm,{rating:0,content:'',images:[],hp:''});rf.value.showModal()}   // giữ lại tên khách đã nhập lần trước
+async function toJpeg(file,max){   // thu nhỏ ảnh ngay trên máy khách trước khi tải lên cho nhanh
+  const img=await createImageBitmap(file),k=Math.min(1,max/Math.max(img.width,img.height))
+  const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);c.getContext('2d').drawImage(img,0,0,c.width,c.height)
+  return new Promise((ok,no)=>c.toBlob(b=>b?ok(b):no(new Error('Không đọc được ảnh này')),'image/jpeg',.82))
+}
+async function rPick(e){
+  const files=[...e.target.files];e.target.value='';rErr.value=''
+  for(const f of files){
+    if(rForm.images.length+rUp.value>=5){rErr.value='Tối đa 5 ảnh cho mỗi đánh giá';break}
+    rUp.value++
+    try{const blob=await toJpeg(f,1000),g=await post('/api/review',{action:'upload'});await putFile(g.url,blob);rForm.images.push(g.publicUrl)}
+    catch(err){rErr.value=(err&&err.message&&err.message!=='upload')?err.message:'Không tải được ảnh, vui lòng thử lại'}
+    rUp.value--
+  }
+}
+async function loadReviews(page=1){
+  const p=cur.value.p;rList.loading=true
+  try{
+    const r=await fetch('/api/review?product_id='+encodeURIComponent(p.id)+'&page='+page+(rBust?'&t='+rBust:'')),j=await r.json()
+    if(!r.ok)throw new Error(j.error||'Không tải được đánh giá')
+    rList.rows=page===1?j.rows:[...rList.rows,...j.rows];rList.total=j.total;rList.avg=j.avg;rList.count=j.count;rList.page=page
+  }catch(err){toast(err.message)}
+  rList.loading=false
+}
+function openRList(){const p=cur.value.p;Object.assign(rList,{rows:[],total:0,avg:Number(p.rating_avg)||0,count:p.rating_count||0,page:1});rl.value.showModal();loadReviews(1)}
+async function rSubmit(){
+  rErr.value=''
+  if(!rForm.rating){rErr.value='Vui lòng chọn số sao';return}
+  rBusy.value=true
+  try{
+    const j=await post('/api/review',{action:'submit',product_id:cur.value.p.id,name:rForm.name.trim(),content:rForm.content,rating:rForm.rating,images:rForm.images,hp:rForm.hp})
+    if(j.avg!=null){cur.value.p.rating_avg=j.avg;cur.value.p.rating_count=j.count}   // cập nhật ngay điểm sao đang hiển thị
+    rBust=Date.now();rf.value.close();toast('Cảm ơn bạn đã đánh giá sản phẩm!');openRList()
+  }catch(err){rErr.value=err.message}
+  rBusy.value=false
+}
+const ivList=ref([]),ivI=ref(0)   // xem từng ảnh đánh giá
+function openIv(list,i){ivList.value=list;ivI.value=i;iv.value.showModal()}
+const ivGo=d=>{const n=ivList.value.length;if(n)ivI.value=(ivI.value+d+n)%n}
+let ivx=0;const ivts=e=>{ivx=e.touches[0].clientX},ivte=e=>{const dx=e.changedTouches[0].clientX-ivx;if(Math.abs(dx)>50)ivGo(dx<0?1:-1)}
 // GAL-BEGIN
 const imgsOf=o=>Array.isArray(o&&o.images)&&o.images.length?o.images:(o&&o.image_url?[o.image_url]:[])   // dữ liệu cũ chỉ có 1 ảnh thì coi là ảnh đầu tiên
 const galOf=(p,ci)=>{const c=imgsOf(p.colors[ci]);return c.length?c:imgsOf(p)}   // màu phụ chưa có ảnh riêng thì dùng ảnh của sản phẩm
@@ -532,4 +616,39 @@ dialog.descd{width:min(720px,calc(100% - 24px))}
  .chipwin{scroll-snap-type:none;cursor:auto}
  .chipbar .chips button{flex:0 0 auto;min-width:0;overflow:visible;text-overflow:clip;padding-left:14px;padding-right:14px}
 }
+/* ---- đánh giá sản phẩm ---- */
+.stars{display:inline-block;width:90px;height:18px;vertical-align:middle;background:linear-gradient(90deg,#f59e0b var(--p,0%),rgba(150,165,175,.35) var(--p,0%));-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z'/%3E%3C/svg%3E") 0 0/18px 18px repeat-x;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z'/%3E%3C/svg%3E") 0 0/18px 18px repeat-x}
+.stars.sm{width:75px;height:15px;-webkit-mask-size:15px 15px;mask-size:15px 15px}
+.stars.big{width:200px;height:40px;-webkit-mask-size:40px 40px;mask-size:40px 40px}
+.crate{display:flex;align-items:center;gap:6px;font-size:13px}.crate small{color:var(--mut)}
+.mrate{display:inline-flex;align-items:center;gap:8px;background:none;border:0;padding:0;color:var(--ink);font:500 14px Outfit,system-ui,sans-serif;cursor:pointer;margin:2px 0 4px}
+.mrate span:last-child{color:var(--mut);text-decoration:underline}
+.mrev{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.mrev .btn{display:inline-flex;align-items:center;gap:6px;justify-content:center}.mrev .btn svg{color:#f59e0b}
+dialog.rfd,dialog.rld{width:min(560px,calc(100% - 24px))}
+.pickrow{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.pickwrap{position:relative;width:200px;height:40px}
+.pickwrap .stars{position:absolute;inset:0}
+.pickzones{position:absolute;inset:0;display:grid;grid-template-columns:repeat(10,1fr)}
+.pickzones button{border:0;background:none;padding:0;cursor:pointer}
+.rnum{font-size:15px}
+.rimgbar{display:flex;align-items:center;gap:10px}.rimgbar small{color:var(--mut)}
+.rthumbs{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.rth{position:relative;width:64px;height:64px;padding:0;border:0;background:none;border-radius:12px;cursor:default}
+.rthumbs button.rth{cursor:zoom-in}
+.rth img{width:100%;height:100%;object-fit:cover;border-radius:12px;display:block}
+.rth>button{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;border:0;background:#d93b3b;color:#fff;font-size:15px;line-height:1;cursor:pointer;padding:0}
+.rsum{display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:16px;background:var(--row)}
+.rsum div{display:grid;gap:2px}.rsum small{color:var(--mut)}
+.rbig{font-size:38px;font-weight:800;letter-spacing:-.02em}
+.ritem{display:grid;gap:6px;padding:14px 0;border-top:1px dashed var(--bd)}
+.rhead{display:flex;justify-content:space-between;gap:10px;align-items:baseline}.rhead small{color:var(--mut)}
+.rrow{display:flex;align-items:center;gap:8px}
+.rtxt{margin:0;white-space:pre-wrap;overflow-wrap:break-word;line-height:1.55}
+dialog.ivd{width:min(920px,calc(100% - 24px));padding:14px}
+.ivbox{position:relative;display:grid;place-items:center;min-height:200px}
+.ivimg{display:block;max-width:100%;max-height:78vh;border-radius:14px}
+.ivnav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.92);color:#14222a;display:grid;place-items:center;cursor:pointer;padding:0;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+.ivp{left:6px}.ivn{right:6px}
+.ivc{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);padding:3px 12px;border-radius:99px;background:rgba(0,0,0,.6);color:#fff;font-size:13px;font-weight:600}
 </style>

@@ -153,6 +153,26 @@
    <p class="empty" v-if="!loading&&!social.length">{{search.social?'Không tìm thấy kết quả phù hợp.':'Chưa có đơn Social nào. Bấm “+ Thêm đơn Social” để nhập.'}}</p>
   </section>
 
+  <section v-else-if="tab=='reviews'">
+   <div class="sh"><div class="sl"></div><h2>Quản lý bình luận</h2><div class="sbar"><span class="si">🔍</span><input type="search" v-model="search.reviews" placeholder="Tìm theo tên khách hoặc nội dung…" @input="onSearch('reviews')"><button v-if="search.reviews" type="button" class="sx" @click="search.reviews='';onSearch('reviews',0)" aria-label="Xóa tìm kiếm"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div></div>
+   <div class="rvfilter">
+    <div class="seg" role="tablist"><button v-for="n in [0,1,2,3,4,5]" :key="n" :class="{on:rvStar==n}" @click="setStar(n)">{{n?n+' sao':'Tất cả'}}</button></div>
+    <small>{{rvStar?'Đang lọc các đánh giá từ '+rvStar+' đến '+rvStar+'.9 sao':'Chọn số sao để lọc. Ví dụ chọn 1 sao sẽ hiện các đánh giá từ 1 đến 1.9 sao.'}}</small>
+   </div>
+   <div class="grid">
+    <div class="card rvcard" v-for="r in reviews" :key="r.id">
+     <div class="hd"><b>{{r.customer_name}}</b><span class="rvstar"><span class="stars" :style="{'--p':(r.rating/5*100)+'%'}"></span><b>{{Number(r.rating).toFixed(1)}}</b></span></div>
+     <small>{{(r.products&&r.products.name)||'Sản phẩm đã xóa'}} · {{dt(r.created_at)}}</small>
+     <p class="rvtxt">{{r.content}}</p>
+     <div class="rvimgs" v-if="r.images&&r.images.length"><button type="button" v-for="(u,i) in r.images" :key="u" @click="openIv(r.images,i)" :aria-label="'Xem ảnh '+(i+1)"><img :src="u" alt="" loading="lazy" decoding="async"></button></div>
+     <div class="acts"><button class="btn s b-del" @click="rvDel=r;rdd.showModal()">Xóa bình luận</button></div>
+    </div>
+   </div>
+   <nav class="pager" v-if="pages('reviews')>1"><button :disabled="pg.reviews<=1" @click="goPg('reviews',pg.reviews-1)" aria-label="Trang trước">‹</button><button v-for="n in pages('reviews')" :key="n" :class="{on:n==pg.reviews}" @click="goPg('reviews',n)">{{n}}</button><button :disabled="pg.reviews>=pages('reviews')" @click="goPg('reviews',pg.reviews+1)" aria-label="Trang sau">›</button></nav>
+   <p class="empty" v-if="loading&&!reviews.length">Đang tải…</p>
+   <p class="empty" v-if="!loading&&!reviews.length">{{(search.reviews||rvStar)?'Không có bình luận phù hợp.':'Chưa có bình luận nào.'}}</p>
+  </section>
+
   <section v-else class="prof">
    <div class="card">
     <div class="phead">
@@ -276,6 +296,13 @@
    </div>
    <button class="btn c" :style="sdKind==='cancel'?{background:'#d93b3b',color:'#fff'}:null" :disabled="busy">{{sdKind==='cancel'?'Xác nhận hủy đơn':'Lưu'}}</button>
   </form></dialog>
+ <dialog ref="rdd" style="width:min(440px,calc(100% - 24px))" @click.self="rdd.close()"><div class="cd" v-if="rvDel">
+  <h3>Xóa bình luận?</h3>
+  <p style="margin:0;color:var(--mut);line-height:1.5">Bạn sắp xóa bình luận {{Number(rvDel.rating).toFixed(1)}} sao của <b style="color:var(--ink)">{{rvDel.customer_name}}</b>. Điểm trung bình của sản phẩm sẽ tự tính lại. Không thể hoàn tác.</p>
+  <div class="mact"><button class="btn o" @click="rdd.close()">Hủy</button><button class="btn" style="background:#d93b3b;color:#fff" @click="doDelRv">Xác nhận xóa</button></div></div></dialog>
+ <dialog ref="iv" class="ivd" @click.self="iv.close()"><button class="x" @click="iv.close()" aria-label="Đóng"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  <div class="ivbox" v-if="ivList.length"><img class="ivimg" :src="ivList[ivI]" alt="">
+   <template v-if="ivList.length>1"><button type="button" class="ivnav ivp" @click="ivGo(-1)" aria-label="Ảnh trước"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button><button type="button" class="ivnav ivn" @click="ivGo(1)" aria-label="Ảnh sau"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button><span class="ivc">{{ivI+1}} / {{ivList.length}}</span></template></div></dialog>
  <div id="toast" :class="{on:tOn}" role="status">{{tMsg}}</div>
 </div>
 </template>
@@ -284,8 +311,8 @@
 import {ref,reactive,computed,nextTick} from 'vue'
 const ORD={new:'Chờ xác nhận thanh toán',paid:'Đã thanh toán',shipping:'Đang giao hàng',done:'Giao hàng thành công',cancelled:'Đã hủy'}
 const QS={new:'Mới',quoted:'Đã báo giá',accepted:'Khách đồng ý',paid:'Đã thanh toán',shipping:'Đang giao hàng',done:'Giao hàng thành công',rejected:'Từ chối'}
-const PER=12,pg=reactive({products:1,orders:1,quotes:1,social:1})   // mỗi trang tối đa 12 thẻ (4 hàng × 3 cột)
-const total=reactive({products:0,orders:0,quotes:0,social:0}),loading=ref(false),cache=new Map()   // chỉ tải 12 dòng mỗi trang; nhớ trang đã xem để chuyển tab là hiện ngay
+const PER=12,pg=reactive({products:1,orders:1,quotes:1,social:1,reviews:1})   // mỗi trang tối đa 12 thẻ (4 hàng × 3 cột)
+const total=reactive({products:0,orders:0,quotes:0,social:0,reviews:0}),loading=ref(false),cache=new Map()   // chỉ tải 12 dòng mỗi trang; nhớ trang đã xem để chuyển tab là hiện ngay
 const pages=k=>Math.max(1,Math.ceil(total[k]/PER))
 // màu từng trạng thái: xanh dương = đã thanh toán, cam = đang giao, xanh lá = thành công, đỏ = hủy/từ chối
 const SC={new:'#eab308',paid:'#3b82f6',quoted:'#a855f7',accepted:'#14b8a6',shipping:'#f59e0b',done:'#22c55e',cancelled:'#ef4444',rejected:'#ef4444'}
@@ -495,7 +522,14 @@ const sdSubmit=()=>run(async()=>{
   }
   sd.value.close();cache.clear();toast('Đã cập nhật đơn hàng');go('social')
 })
-const tabs=[['overview','Tổng quan'],['products','Sản phẩm'],['categories','Danh mục'],['orders','Đơn hàng'],['quotes','Đơn theo yêu cầu'],['social','Đơn hàng Social']]
+// ---- Quản lý bình luận: chỉ lọc và xóa, không sửa ----
+function setStar(n){rvStar.value=n;pg.reviews=1;load('reviews',1)}
+const rdd=ref(null),rvDel=ref(null)
+const doDelRv=()=>run(async()=>{await api('review.delete',{id:rvDel.value.id});rdd.value.close();cache.clear();toast('Đã xóa bình luận');go('reviews')})
+const iv=ref(null),ivList=ref([]),ivI=ref(0)   // xem từng hình ảnh một
+function openIv(list,i){ivList.value=list;ivI.value=i;iv.value.showModal()}
+const ivGo=d=>{const n=ivList.value.length;if(n)ivI.value=(ivI.value+d+n)%n}
+const tabs=[['overview','Tổng quan'],['products','Sản phẩm'],['categories','Danh mục'],['orders','Đơn hàng'],['quotes','Đơn theo yêu cầu'],['social','Đơn hàng Social'],['reviews','Bình luận']]
 const vnd=n=>Number(n).toLocaleString('vi-VN')+'đ',dt=d=>new Date(d).toLocaleString('vi-VN')
 const tok=ref(localStorage.getItem('cc-at')||''),em=ref(''),pw=ref(''),msg=ref(''),busy=ref(false),tab=ref('products')
 const products=ref([]),orders=ref([]),quotes=ref([])
@@ -512,20 +546,20 @@ async function run(fn){busy.value=true;try{await fn()}catch(e){toast(e.message)}
 async function login(){busy.value=true;msg.value=''
   try{const j=await api('login',{email:em.value,password:pw.value});tok.value=j.token;localStorage.setItem('cc-at',j.token);init()}catch(e){msg.value=e.message}
   busy.value=false}
-const social=ref([])
-const L={products,orders,quotes,social}
-const search=reactive({products:'',orders:'',quotes:'',social:'',categories:''})
+const social=ref([]),reviews=ref([]),rvStar=ref(0)   // rvStar: 0 = tất cả, 1..5 = lọc theo khoảng sao
+const L={products,orders,quotes,social,reviews}
+const search=reactive({products:'',orders:'',quotes:'',social:'',reviews:'',categories:''})
 const ck=(t,page,q)=>t+':'+page+':'+q   // khóa cache gồm cả từ khóa tìm kiếm
 async function load(t,page){
-  const qq=(search[t]||'').trim()
-  const c=cache.get(ck(t,page,qq))
+  const qs=()=>(search[t]||'').trim(),key=()=>qs()+(t==='reviews'?'|'+rvStar.value:'')   // khóa gồm từ khóa và (với bình luận) số sao đang lọc
+  const k0=key(),c=cache.get(ck(t,page,k0))
   if(c){L[t].value=c.rows;total[t]=c.total}   // hiện ngay dữ liệu đã xem, rồi làm mới ngầm
   loading.value=!c
   try{
-    const j=await api(t,{page,q:qq})
-    if(qq!==(search[t]||'').trim())return                 // đã gõ từ khóa mới hơn: bỏ kết quả cũ
+    const j=await api(t,{page,q:qs(),star:t==='reviews'?rvStar.value:undefined})
+    if(k0!==key())return                                  // đã đổi từ khóa hoặc bộ lọc: bỏ kết quả cũ
     if(!j.rows.length&&page>1){loading.value=false;pg[t]=page-1;return load(t,page-1)}
-    cache.set(ck(t,page,qq),j);L[t].value=j.rows;total[t]=j.total
+    cache.set(ck(t,page,k0),j);L[t].value=j.rows;total[t]=j.total
   }catch(e){toast(e.message)}
   loading.value=false
 }
@@ -746,4 +780,17 @@ select.st option{background:var(--stage);font-weight:600}
 .chk.star svg{color:#f59e0b;fill:none;flex:none}
 .chk.star input:checked+svg{fill:#f59e0b}
 .fstar{color:#f59e0b;margin-left:6px;vertical-align:-2px}
+.stars{display:inline-block;width:90px;height:18px;vertical-align:middle;background:linear-gradient(90deg,#f59e0b var(--p,0%),rgba(150,165,175,.35) var(--p,0%));-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z'/%3E%3C/svg%3E") 0 0/18px 18px repeat-x;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z'/%3E%3C/svg%3E") 0 0/18px 18px repeat-x}
+.rvfilter{display:grid;gap:8px;justify-items:center;text-align:center}.rvfilter small{color:var(--mut)}
+.rvstar{display:inline-flex;align-items:center;gap:8px}
+.rvtxt{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55;max-height:11em;overflow:auto}
+.rvimgs{display:flex;gap:8px;flex-wrap:wrap}
+.rvimgs button{padding:0;border:0;background:none;cursor:zoom-in;border-radius:12px;overflow:hidden}
+.rvimgs img{width:64px;height:64px;object-fit:cover;display:block}
+.ivd{width:min(920px,calc(100% - 24px));padding:14px}
+.ivbox{position:relative;display:grid;place-items:center;min-height:200px}
+.ivimg{display:block;max-width:100%;max-height:78vh;border-radius:14px}
+.ivnav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.92);color:#14222a;display:grid;place-items:center;cursor:pointer;padding:0;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+.ivp{left:6px}.ivn{right:6px}
+.ivc{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);padding:3px 12px;border-radius:99px;background:rgba(0,0,0,.6);color:#fff;font-size:13px;font-weight:600}
 </style>

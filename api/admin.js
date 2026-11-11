@@ -206,6 +206,23 @@ export default async function handler(req,res){
         for(const k of keys)if(b[k]!==undefined){const v=intv(b[k]);if(v===null)return E(res,'Số tiền không hợp lệ');upd[k]=v}
         if(!Object.keys(upd).length)return E(res,'Chưa có số tiền nào để cập nhật')
         await s.from('social_orders').update(upd).eq('id',b.id);return res.json({})}
+      case 'reviews':{   // quản lý bình luận: lọc theo khoảng sao (chọn 1 sao = từ 1 đến 1,9 sao) và tìm theo tên/nội dung
+        const [f,t]=rng(b)
+        let qy=s.from('reviews').select('id,product_id,customer_name,content,rating,images,created_at,products(name)',{count:'exact'}).order('created_at',{ascending:false})
+        const st=Number(b.star);if(Number.isInteger(st)&&st>=1&&st<=5)qy=qy.gte('rating',st).lt('rating',st+1)
+        if(kw)qy=qy.or(`customer_name.ilike.*${kw}*,content.ilike.*${kw}*`)
+        r=await qy.range(f,t)
+        return res.json({rows:r.data||[],total:r.count||0})}
+      case 'review.delete':{   // chỉ xóa, không có chức năng sửa bình luận
+        const {data:rv}=await s.from('reviews').select('images').eq('id',b.id).single()
+        if(!rv)return E(res,'Không tìm thấy bình luận')
+        await s.from('reviews').delete().eq('id',b.id)
+        try{   // dọn luôn ảnh của bình luận trong kho ảnh
+          const mark='/storage/v1/object/public/reviews/'
+          const paths=(Array.isArray(rv.images)?rv.images:[]).map(u=>String(u).split(mark)[1]).filter(Boolean)
+          if(paths.length)await s.storage.from('reviews').remove(paths)
+        }catch{}
+        return res.json({})}
       case 'quote.file':{
         const {data:qr}=await s.from('quote_requests').select('file_path').eq('id',b.id).single()
         if(!qr||!qr.file_path)return E(res,'Không có file')
