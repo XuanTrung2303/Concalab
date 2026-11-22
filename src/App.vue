@@ -98,10 +98,10 @@
  </div>
 
  <div class="band"><div><h2>Có ý tưởng rồi?</h2><p>Gửi cho Con Cá Lab, biến nó thành sản phẩm thật.</p></div><a class="btn w" href="#custom">Báo giá ngay</a></div>
- <div class="ct" id="lien-he"><span class="lg fl" role="img" aria-label="Con Cá Lab"><i class="n"></i><i class="c"></i></span>Zalo 09xx xxx xxx · concalab@gmail.com · Đống Đa, Hải Châu Đà Nẵng<br>© 2026 · Con Cá Lab</div>
+ <div class="ct" id="lien-he"><span class="lg fl" role="img" aria-label="Con Cá Lab"><i class="n"></i><i class="c"></i></span>Zalo 09xx xxx xxx · hello@concalab.vn · Hội An, Đà Nẵng<br>© 2026 · In 3D từng lớp, làm nên ý tưởng</div>
 </div>
 
-<dialog ref="pd" aria-label="Chi tiết sản phẩm" @click.self="pd.close()">
+<dialog ref="pd" class="pdd" aria-label="Chi tiết sản phẩm" @click.self="pd.close()">
  <button class="x" @click="pd.close()" aria-label="Đóng"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
  <div class="md" v-if="cur">
   <div class="mleft">
@@ -555,7 +555,6 @@ html{-webkit-tap-highlight-color:transparent}
  html body button:focus-visible,html body a:focus-visible{outline:none}
 }
 @media (max-width:860px){
- .md .mimg{aspect-ratio:auto;height:34vh;min-height:190px}   /* ảnh không chiếm quá nửa màn hình */
  .md .buy{position:sticky;bottom:0;z-index:3;background:var(--stage);padding:12px 0 calc(12px + env(safe-area-inset-bottom,0px));margin-top:8px;border-top:1px solid var(--bd)}   /* giá và nút Thêm giỏ luôn nằm sát đáy, khỏi phải cuộn */
  .cd{padding:22px 16px}
 }
@@ -651,4 +650,12 @@ dialog.ivd{width:min(920px,calc(100% - 24px));padding:14px}
 .ivnav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.92);color:#14222a;display:grid;place-items:center;cursor:pointer;padding:0;box-shadow:0 4px 14px rgba(0,0,0,.3)}
 .ivp{left:6px}.ivn{right:6px}
 .ivc{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);padding:3px 12px;border-radius:99px;background:rgba(0,0,0,.6);color:#fff;font-size:13px;font-weight:600}
+/* ---- cửa sổ chi tiết sản phẩm: ảnh (tỉ lệ 4:3) nằm trên, thông tin nằm dưới, ở mọi kích thước màn hình ---- */
+dialog.pdd{width:min(620px,calc(100% - 24px))}
+dialog.pdd .md{grid-template-columns:1fr}
+dialog.pdd .md .mleft{display:block}
+dialog.pdd .md .mleft .mimg{aspect-ratio:4/3;height:auto;min-height:0;flex:none}
+dialog.pdd .md .minfo{padding:22px 26px 26px}
+dialog.pdd .md .buy{position:sticky;bottom:0;z-index:3;background:var(--stage);padding:12px 0 calc(12px + env(safe-area-inset-bottom,0px));margin-top:8px;border-top:1px solid var(--bd)}   /* nội dung dài thì giá và nút mua vẫn dính ở đáy */
+@media (max-width:560px){dialog.pdd .md .minfo{padding:18px 18px 22px}dialog.pdd .md .minfo h3{font-size:26px}}
 </style>
