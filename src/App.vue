@@ -98,7 +98,7 @@
  </div>
 
  <div class="band"><div><h2>Có ý tưởng rồi?</h2><p>Gửi cho Con Cá Lab, biến nó thành sản phẩm thật.</p></div><a class="btn w" href="#custom">Báo giá ngay</a></div>
- <div class="ct" id="lien-he"><span class="lg fl" role="img" aria-label="Con Cá Lab"><i class="n"></i><i class="c"></i></span>Zalo 09xx xxx xxx · hello@concalab.vn · Hội An, Đà Nẵng<br>© 2026 · In 3D từng lớp, làm nên ý tưởng</div>
+ <div class="ct" id="lien-he"><span class="lg fl" role="img" aria-label="Con Cá Lab"><i class="n"></i><i class="c"></i></span>Zalo 09xx xxx xxx · concalab@gmail.com · Đống Đa, Hải Châu, Đà Nẵng<br>© 2026 · In 3D từng lớp, làm nên ý tưởng</div>
 </div>
 
 <dialog ref="pd" class="pdd" aria-label="Chi tiết sản phẩm" @click.self="pd.close()">
